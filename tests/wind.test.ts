@@ -51,7 +51,7 @@ test("the same gust propagates downwind at the declared speed, without random en
   sampleWind(4, 9, 10, p, again);
   assert.deepEqual(a, again);
 });
-test("grass, cape, audio and field uniforms share one WindSystem instance", () => {
+test("grass, scarf, audio and field uniforms share one WindSystem instance", () => {
   const wind = new WindSystem(),
     grass = new Grass(new Scene(), wind),
     knight = new Knight(wind),
@@ -105,7 +105,7 @@ test("selective armor mapping reveals steel without lifting black scenery or clo
   assert.equal(mapArmorLuminance(0), 0);
   assert.equal(mapArmorLuminance(0.005), 0);
   assert.equal(mapLuminance(0), 0);
-  assert.ok(mapArmorLuminance(0.1) > 0.53);
+  assert.ok(mapArmorLuminance(0.1) > 0.42);
   assert.ok(mapArmorLuminance(0.1) > mapLuminance(0.1) * 2);
   assert.ok(mapArmorLuminance(0.8) > mapArmorLuminance(0.1));
 });

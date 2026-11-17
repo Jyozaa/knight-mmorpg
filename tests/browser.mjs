@@ -83,6 +83,10 @@ try {
   });
   assert.ok(start.audio.rms > 0.000001);
   await page.screenshot({ path: "test-results/standing.png" });
+  await page.screenshot({
+    path: "test-results/lamp-posts.png",
+    clip: { x: 0, y: 210, width: 430, height: 570 },
+  });
   const standing = PNG.sync.read(readFileSync("test-results/standing.png"));
   let black = 0,
     visible = 0;
@@ -112,7 +116,12 @@ try {
     }
   result.image.redClothPixels = red;
   result.image.brightArmorPixels = whiteArmor;
-  assert.ok(red > 1000);
+  assert.ok(red > 220, `red scarf pixels ${red}`);
+  assert.equal(start.animation.sword.drawn, false);
+  assert.equal(start.animation.sword.mount, "pelvis");
+  assert.equal(start.animation.scarf.tips.length, 3);
+  assert.equal(start.lamps.count, 15);
+  assert.match(start.animation.source, /KayKit/);
   assert.ok(whiteArmor > 2500);
   await wait(180);
   const later = PNG.sync.read(await page.screenshot());
@@ -130,6 +139,14 @@ try {
   await page.mouse.wheel(0, -600);
   await wait(1700);
   await page.screenshot({ path: "test-results/knight-closeup.png" });
+  await page.screenshot({
+    path: "test-results/sheathed-sword.png",
+    clip: { x: 400, y: 240, width: 580, height: 630 },
+  });
+  await page.screenshot({
+    path: "test-results/ragged-scarf.png",
+    clip: { x: 400, y: 180, width: 700, height: 460 },
+  });
   await page.screenshot({
     path: "test-results/grass-closeup.png",
     clip: { x: 980, y: 520, width: 420, height: 340 },

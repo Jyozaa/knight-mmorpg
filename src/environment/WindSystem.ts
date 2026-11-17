@@ -62,9 +62,9 @@ export function windAudioTargets(
   const proximity = 1 / (1 + distance * 0.055);
   const gust = near.gust * 0.78 + listener.gust * 0.22,
     strength = near.strength * 0.65 + listener.strength * 0.35;
-  out.gain = 0.035 + strength * 0.105 + gust * 0.1;
+  out.gain = 0.035 + strength * 0.13 + gust * 0.14;
   out.cutoff = 360 + strength * 1350 + gust * 850;
-  out.rustleGain = (0.008 + near.rustle * 0.085) * proximity;
+  out.rustleGain = (0.008 + near.rustle * 0.115) * proximity;
   out.rustleCutoff = 900 + near.strength * 1600 + near.gust * 800;
   out.pan = -p.directionX * 0.35;
   return out;

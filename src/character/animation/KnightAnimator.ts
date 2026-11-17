@@ -9,6 +9,7 @@ import {
   swingProgress,
   smoother,
 } from "./kinematics";
+import { LocomotionClips } from "./LocomotionClips";
 interface FootState {
   anchor: T.Vector3;
   start: T.Vector3;
@@ -22,6 +23,9 @@ interface FootState {
 }
 export class KnightAnimator {
   private phase = 0.08;
+  private clips = new LocomotionClips();
+  private previousSpeed = 0;
+  private acceleration = 0;
   private stride = 0;
   private run = 0;
   private initialized = false;
@@ -126,6 +130,19 @@ export class KnightAnimator {
     if (restTime === null && actualSpeed > 0.04)
       this.phase += (actualSpeed * dt) / strideLength;
     const cycle = Math.PI * 2 * this.phase;
+    this.acceleration = damp(
+      this.acceleration,
+      T.MathUtils.clamp(
+        (actualSpeed - this.previousSpeed) / Math.max(dt, 0.001),
+        -5,
+        5,
+      ),
+      6,
+      dt,
+    );
+    this.previousSpeed = actualSpeed;
+    this.clips.update(this.phase, this.run, this.stride, time);
+    const pose = this.clips.rotations;
     const stride = this.stride * (1 - restWeight),
       run = this.run * (1 - restWeight);
     this.impactVelocity += (-this.impact * 150 - this.impactVelocity * 22) * dt;
@@ -137,43 +154,52 @@ export class KnightAnimator {
           ? 1
           : 0;
     this.support = damp(this.support, planted, 9, dt);
-    const bob =
-      (Math.cos(cycle * 2) * 0.012 + run * Math.abs(Math.sin(cycle)) * 0.065) *
-      stride;
+    const bob = this.clips.hipHeight * (1 - restWeight);
     r.hips.position.set(
-      Math.sin(cycle) * 0.021 * stride * (1 - restWeight) +
+      Math.sin(cycle) * 0.035 * stride * (1 - restWeight) +
         this.support * 0.012 * stride +
         Math.sin(time * 0.6) * 0.005 * (1 - stride) * (1 - restWeight),
       1.01 +
         this.impact * (1 - restWeight) -
-        0.1 * stride -
-        0.02 * run +
+        0.065 * stride -
+        0.005 * run +
         bob -
         0.055 * prepare -
         0.69 * sit -
         0.04 * recline,
-      -0.07 * prepare - 0.16 * sit - 0.12 * recline,
+      0.035 * stride +
+        0.055 * run -
+        0.07 * prepare -
+        0.16 * sit -
+        0.12 * recline,
     );
     r.hips.rotation.set(
-      0.04 * run * (1 - restWeight),
-      Math.sin(cycle) * 0.055 * stride * (1 - restWeight),
-      Math.sin(cycle) * 0.035 * stride * (1 - restWeight),
+      (pose[0].x - 0.045 * stride - 0.025 * run) * (1 - restWeight),
+      (pose[0].y + Math.sin(cycle) * 0.07 * stride) * (1 - restWeight),
+      (pose[0].z +
+        Math.sin(cycle) * 0.025 * stride -
+        T.MathUtils.clamp(turnRate * 0.025, -0.1, 0.1) * stride) *
+        (1 - restWeight),
     );
     r.spine.position.y = 0.11 - 0.1 * recline;
     r.spine.rotation.set(
-      0.055 * stride + 0.13 * run + 0.2 * prepare * (1 - sit) - 1.6 * recline,
-      -Math.sin(cycle) * 0.035 * stride +
+      (pose[1].x - 0.09 * stride - 0.06 * run - this.acceleration * 0.018) *
+        (1 - restWeight) +
+        0.2 * prepare * (1 - sit) -
+        1.6 * recline,
+      (pose[1].y - Math.sin(cycle) * 0.045 * stride) * (1 - restWeight) +
         Math.max(-0.16, Math.min(0.16, turnRate * 0.035)),
-      0,
+      pose[1].z * (1 - restWeight),
     );
     r.chest.rotation.set(
-      -0.08 * sit + 0.04 * recline,
-      -Math.sin(cycle) * 0.045 * stride,
-      0,
+      pose[2].x * (1 - restWeight) - 0.08 * sit + 0.04 * recline,
+      (pose[2].y - Math.sin(cycle) * 0.055 * stride) * (1 - restWeight),
+      pose[2].z * (1 - restWeight),
     );
     r.chest.scale.y = 1 + Math.sin(time * 1.65) * 0.005;
     r.head.rotation.set(
-      -0.035 * stride +
+      0.085 * stride +
+        0.045 * run +
         0.06 * sit -
         0.1 * recline +
         Math.sin(time * 0.41) * 0.012 * (1 - restWeight),
@@ -236,37 +262,40 @@ export class KnightAnimator {
       solveKnee(this.origin, foot.target, this.pole, 0.445, 0.435, this.knee);
       aimBone(r.thighs[i], this.origin, this.knee);
       aimBone(r.shins[i], this.knee, foot.target);
-      // Level the sabaton during contact; heel strike and toe-off use a small pitch arc.
-      const heel = restWeight
-        ? 0
-        : foot.swinging
-          ? Math.sin(
-              swingProgress(foot.phase, T.MathUtils.lerp(0.62, 0.36, run)) *
-                Math.PI,
-            ) * 0.14
-          : Math.max(0, (foot.phase - 0.42) / 0.2) * -0.18 * (1 - run);
+      // Heel strike dorsiflexes; late stance rolls onto the toe. Swing carries
+      // that push-off into a lifted toe and returns to a heel-first landing.
+      const stance = T.MathUtils.lerp(0.62, 0.36, run);
+      const swing = swingProgress(foot.phase, stance),
+        contactPhase = foot.phase / stance;
+      const heel =
+        (restWeight
+          ? 0
+          : foot.swinging
+            ? T.MathUtils.lerp(0.23, -0.13, smoother(swing)) -
+              0.1 * Math.sin(swing * Math.PI)
+            : -0.13 * (1 - smoothstep(0, 0.22, contactPhase)) +
+              0.23 * smoothstep(0.67, 1, contactPhase)) * stride;
       r.feet[i].parent!.getWorldQuaternion(this.q);
       r.feet[i].quaternion.copy(this.q.invert());
       r.feet[i].rotateY(this.root.rotation.y);
       r.feet[i].rotateX(heel + 0.06 * settle);
-      r.toes[i].rotation.x = Math.max(0, -heel) * 0.7;
+      r.toes[i].rotation.x = -Math.max(0, heel) * 0.8;
       r.feet[i].updateMatrixWorld(true);
     }
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? -1 : 1;
-      const swing = Math.sin(cycle + (i === 0 ? Math.PI : 0));
+      const arm = pose[4 + i],
+        elbow = pose[6 + i];
       r.arms[i].rotation.set(
-        (-0.14 + swing * (0.22 + 0.28 * run) * stride) * (1 - restWeight) +
-          0.15 * recline,
-        0,
-        side * (0.075 + 0.03 * run),
+        arm.x * (1 - restWeight) + 0.15 * recline,
+        (arm.y + T.MathUtils.clamp(turnRate * 0.025, -0.12, 0.12) * stride) *
+          (1 - restWeight),
+        arm.z * (1 - restWeight) + side * 0.045,
       );
       r.forearms[i].rotation.set(
-        T.MathUtils.lerp(i === 1 ? -0.65 : -0.15, -0.12, restWeight) -
-          0.65 * run -
-          0.13 * stride,
-        0,
-        0,
+        elbow.x * (1 - restWeight) - 0.12 * restWeight,
+        elbow.y * (1 - restWeight),
+        elbow.z * (1 - restWeight),
       );
       r.hands[i].rotation.set(0.02, 0, side * -0.06);
       // Supporting palm and wrist settle behind the body before the back comes down.
@@ -369,8 +398,7 @@ export class KnightAnimator {
       f.swinging = true;
       f.start.copy(f.target);
       const strideLength = T.MathUtils.lerp(1.18, 2.45, this.run);
-      const lead =
-        strideLength * (1 - stance * 0.5) - strideLength * (p - stance);
+      const lead = strideLength * (0.48 - (p - stance));
       f.end
         .copy(this.root.position)
         .addScaledVector(this.direction, lead)
@@ -384,15 +412,19 @@ export class KnightAnimator {
     f.contact = !inSwing;
     if (inSwing) {
       const t = swingProgress(p, stance),
-        s = smoother(t);
+        s = t * t * (3 - 2 * t);
       f.target.copy(f.start).lerp(f.end, s);
       f.target.y +=
-        Math.sin(Math.PI * t) * T.MathUtils.lerp(0.105, 0.24, this.run);
+        Math.pow(Math.sin(Math.PI * t), 0.8) *
+        T.MathUtils.lerp(0.13, 0.29, this.run);
     } else f.target.copy(f.anchor);
   }
   get diagnostics() {
     return {
       phase: wrapPhase(this.phase),
+      source: "KayKit CC0 Walking_A / Running_A + terrain contact IK",
+      acceleration: this.acceleration,
+      strideBlend: this.stride,
       runBlend: this.run,
       footContacts: this.feet.map((f) => f.contact),
       footTargets: this.feet.map((f) => f.target.toArray()),

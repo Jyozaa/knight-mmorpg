@@ -11,15 +11,15 @@ export const WIND_GLSL =
   SHARED_WIND_GLSL +
   `
 vec3 bendGrass(vec3 p,vec3 world,vec3 actor,vec3 axisX,vec3 axisZ){
- float h=max(0.,p.y),anchor=clamp(h/.65,0.,1.);
+ float h=max(0.,p.y),anchor=clamp(h/1.25,0.,1.);
  // Sample the actual blade position, so a tuft's tips don't march in rigid lockstep.
  vec2 fieldPosition=world.xz+axisX.xz*p.x+axisZ.xz*p.z;
  vec3 field=sharedWind(fieldPosition);
  float bend=pow(anchor,1.65);
- vec3 force=vec3(windDirection.x,0.,windDirection.y)*field.x*bend*.28;
+ vec3 force=vec3(windDirection.x,0.,windDirection.y)*field.x*bend*.72;
  vec3 crossWind=vec3(-windDirection.y,0.,windDirection.x);
- force+=crossWind*field.z*bend*.10;
- p.y-=field.x*bend*h*.12;
+ force+=crossWind*field.z*bend*.26;
+ p.y-=field.x*bend*h*.21;
  float proximity=1.-smoothstep(.25,.9,distance(world.xz,actor.xz));
  force+=vec3(world.x-actor.x,0.,world.z-actor.z)*proximity*anchor*.18;
  p.x+=dot(force,axisX);p.z+=dot(force,axisZ);
@@ -32,9 +32,9 @@ export function grassTemplate(variant: number, sparse = false) {
     parts: T.BufferGeometry[] = [];
   const count = sparse ? 4 : 7 + variant * 2;
   for (let blade = 0; blade < count; blade++) {
-    const height = 0.18 + rng() * 0.43,
-      width = 0.007 + rng() * 0.011,
-      bend = 0.12 + rng() * 0.38,
+    const height = 0.58 + rng() * 0.78,
+      width = 0.005 + rng() * 0.009,
+      bend = 0.19 + rng() * 0.47,
       angle = rng() * Math.PI * 2;
     const ox = (rng() - 0.5) * 0.2,
       oz = (rng() - 0.5) * 0.2;
@@ -138,7 +138,7 @@ export class Grass {
             if (terrainMaterial(x, z) === "stone" && rng() > 0.13) continue;
             dummy.position.set(x, heightAt(x, z) - 0.012, z);
             dummy.rotation.set(0, rng() * Math.PI * 2, 0);
-            const h = 0.6 + rng() * 0.7;
+            const h = 0.65 + rng() * 0.55;
             dummy.scale.set(0.7 + rng() * 0.7, h, 0.7 + rng() * 0.7);
             dummy.updateMatrix();
             mesh.setMatrixAt(count, dummy.matrix);

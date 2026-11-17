@@ -20,9 +20,13 @@ Playable hilltop exploration, third-person controls, terrain and object collisio
 
 Rounded closed helmet, domed layered pauldrons, procedural steel wear, long crimson cape/tabard, selective surface-aware ASCII reconstruction, curved/world-anchored grass marks, stance-triggered footfalls and impact settling. A single spatial WindSystem drives grass, cloth, wind audio filtering/volume and nearby rustle. GPU/CPU field parity and live audio correlation are verified alongside existing controls, rock placement, IK and the hilltop sequence.
 
+## Complete — 0.4 scarf, locomotion and hillside atmosphere
+
+Retargeted CC0 authored idle/walk/run upper-body curves blended with terrain IK, acceleration/turning posture and contact-controlled legs. Sword moved from hand to a separate hip scabbard. Three narrow torn scarf ribbons use shared-wind forces and fixed-step constrained simulation. Taller grass bends strongly in traveling gusts, with more pronounced field-driven audio. Fifteen medieval lantern posts and four nearby warm lights reinforce the hillside. Repository review video and eleven screenshot views accompany browser/system verification.
+
 ## Recommended next art milestone
 
-Have an animator author walk/run/start/stop/turn/sit/lie/get-up clips against the exported rig or a commissioned compatible rig. Crossfade those clips through AnimationMixer, retain terrain/stance corrections, refine hand/sword placement on uneven terrain, and add cloth contact. Continue evaluating small-scale grass aliasing and silhouettes across GPUs. These are refinement tasks for the same hilltop; no new story content was added during this overhaul.
+Commission human-proportioned start/stop/turn/sit/lie/get-up clips against the original exported rig. Retain terrain constraints, refine extreme pivots/steep-slope contact, and improve scarf self-collision and helmet/shoulder interaction. Continue testing small-scale grass aliasing and silhouette readability across GPUs before expanding the story.
 
 ## Later story work — not implemented
 

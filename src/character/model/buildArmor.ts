@@ -717,60 +717,6 @@ export function buildArmor(root: T.Group) {
       0,
     );
   }
-  // Longsword with a diamond cross-section, recessed fuller, wrapped grip and swept guard.
-  const hand = rig.hands[1];
-  b.add(
-    hand,
-    armorLoft(
-      [
-        { y: -0.09, width: 0.028, depth: 0.025, z: 0.035 },
-        { y: -0.24, width: 0.025, depth: 0.022, z: 0.035 },
-      ],
-      0,
-    ),
-    3,
-  );
-  for (let i = 0; i < 9; i++)
-    b.add(
-      hand,
-      ellipseSeam(-0.1 - i * 0.015, 0.028, 0.025, 0.035, 0, Math.PI * 2, 0.002),
-      4,
-    );
-  b.add(
-    hand,
-    seam(
-      [
-        v(-0.19, -0.265, 0.035),
-        v(-0.12, -0.245, 0.035),
-        v(0, -0.255, 0.035),
-        v(0.12, -0.245, 0.035),
-        v(0.19, -0.265, 0.035),
-      ],
-      0.018,
-    ),
-    1,
-  );
-  b.add(
-    hand,
-    armorLoft(
-      [
-        { y: -0.28, width: 0.038, depth: 0.012, z: 0.035 },
-        { y: -0.34, width: 0.043, depth: 0.013, z: 0.035 },
-        { y: -1.02, width: 0.024, depth: 0.009, z: 0.035 },
-        { y: -1.13, width: 0.001, depth: 0.001, z: 0.035 },
-      ],
-      0,
-      0,
-      4,
-    ),
-    1,
-  );
-  b.add(
-    hand,
-    seam([v(0, -0.32, 0.049), v(0, -0.85, 0.046), v(0, -1.01, 0.044)], 0.004),
-    2,
-  );
-  b.add(hand, new T.IcosahedronGeometry(0.042, 2), 1, [0, -0.055, 0.035]);
   // A compact shield leaves the fitted armor visible; its face is curved in three dimensions.
   const shield = panel(
     [

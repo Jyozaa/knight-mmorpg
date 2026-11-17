@@ -272,6 +272,10 @@ function boot() {
           audioContextState: audio.contextState,
           audio: audio.diagnostics,
           wind: wind.diagnostics,
+          lamps: {
+            count: world.lamps.positions.length,
+            positions: world.lamps.positions.map((p) => p.toArray()),
+          },
           sharedWind:
             knight instanceof Knight &&
             world.grass.wind === wind &&

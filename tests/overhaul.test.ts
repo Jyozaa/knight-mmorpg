@@ -214,7 +214,7 @@ test("resting armor surface samples do not disappear below the terrain", () => {
   assert.ok(minimum > -0.025);
 });
 
-test("held sword and armor clear the ground during idle and forward traversal", () => {
+test("armor clears the ground during idle and forward traversal", () => {
   reset();
   let minimum = Infinity;
   for (let frame = 0; frame < 120; frame++) {
@@ -238,4 +238,151 @@ test("held sword and armor clear the ground during idle and forward traversal", 
   }
   console.log({ minimumWalkingSurfaceClearance: minimum });
   assert.ok(minimum > -0.025);
+});
+
+test("sword remains in its hip socket, enclosed by a scabbard and clear of terrain through rest", () => {
+  const actor = new Knight();
+  actor.root.position.set(0, heightAt(0, -3), -3);
+  actor.root.rotation.y = Math.PI;
+  assert.equal(actor.sword.mount.parent, actor.rig.hips);
+  assert.equal(actor.sword.sword.parent, actor.sword.mount);
+  assert.equal(actor.sword.drawn, false);
+  let minimum = Infinity;
+  for (let frame = 0; frame <= 600; frame++) {
+    actor.update(1 / 60, frame / 60, 0, frame / 60, 0);
+    if (frame % 15 !== 0) continue;
+    actor.sword.mount.traverse((o) => {
+      if (!(o instanceof T.Mesh)) return;
+      const p = o.geometry.attributes.position;
+      for (let i = 0; i < p.count; i += 3) {
+        temp.fromBufferAttribute(p, i);
+        o.localToWorld(temp);
+        minimum = Math.min(minimum, temp.y - heightAt(temp.x, temp.z));
+      }
+    });
+  }
+  assert.ok(minimum > -0.035, `scabbard clearance ${minimum}`);
+});
+
+test("ragged scarf is narrow, follows the neck, moves with shared gusts, and freezes with simulation time", () => {
+  const actor = new Knight();
+  actor.root.position.set(0, heightAt(0, 7), 7);
+  const listener = actor.root.position.clone().add(new T.Vector3(0, 2, 4));
+  const tips: T.Vector3[] = [];
+  const travel = [0, 0, 0];
+  for (let i = 0; i < 300; i++) {
+    actor.wind.update(1 / 60, actor.root.position, listener);
+    actor.update(1 / 60, (i + 1) / 60, 0, null, 0);
+    if (i === 150)
+      tips.push(...actor.cape.ribbons.map((r) => r.points.at(-1)!.clone()));
+    if (i > 150)
+      actor.cape.ribbons.forEach(
+        (r, j) =>
+          (travel[j] = Math.max(
+            travel[j],
+            r.points.at(-1)!.distanceTo(tips[j]),
+          )),
+      );
+  }
+  assert.equal(actor.cape.ribbons.length, 3);
+  for (let i = 0; i < 3; i++) {
+    const r = actor.cape.ribbons[i];
+    assert.ok(r.width < 0.15 && r.length > 0.7);
+    assert.ok(travel[i] > 0.07);
+    const root = r.offset.clone();
+    actor.rig.chest.localToWorld(root);
+    assert.ok(r.points[0].distanceTo(root) < 1e-5);
+    for (const p of r.points) assert.ok(p.y >= heightAt(p.x, p.z) + 0.03);
+    for (let j = 1; j < r.points.length; j++)
+      assert.ok(
+        r.points[j].distanceTo(r.points[j - 1]) < (r.length / 18) * 1.3,
+      );
+  }
+  const before = actor.cape.diagnostics;
+  actor.update(0, 5, 0, null, 0);
+  assert.deepEqual(actor.cape.diagnostics, before);
+});
+
+test("authored locomotion blends through acceleration, a run and a stop without arm snapping", () => {
+  const actor = new Knight();
+  actor.root.position.set(0, heightAt(0, 7), 7);
+  actor.root.rotation.y = Math.PI;
+  const q = actor.rig.arms.map((b) => b.quaternion.clone());
+  let maximum = 0,
+    walkLean = 0,
+    runLean = 0;
+  for (let i = 0; i < 600; i++) {
+    const speed =
+      i < 120
+        ? 1.65 * (1 - Math.exp(-i / 20))
+        : i < 360
+          ? 4.4
+          : 4.4 * Math.exp(-(i - 360) / 15);
+    actor.root.position.z -= speed / 60;
+    actor.root.position.y = heightAt(0, actor.root.position.z);
+    actor.update(1 / 60, i / 60, speed, null, 0, i > 200 && i < 260 ? 0.7 : 0);
+    actor.rig.arms.forEach((b, j) => {
+      if (i > 1) maximum = Math.max(maximum, b.quaternion.angleTo(q[j]));
+      q[j].copy(b.quaternion);
+    });
+    if (i === 110) walkLean = actor.rig.spine.rotation.x;
+    if (i === 350) runLean = actor.rig.spine.rotation.x;
+  }
+  assert.ok(maximum < 0.2, `arm jump ${maximum}`);
+  assert.ok(walkLean < -0.075 && runLean < walkLean - 0.1);
+  assert.ok(actor.diagnostics.strideBlend < 0.01);
+  assert.match(actor.diagnostics.source, /KayKit/);
+});
+
+test("lanterns keep semantic amber tags after material cloning and use only four local lights", async () => {
+  const { LampPosts } = await import("../src/world/LampPosts.ts");
+  const scene = new T.Scene(),
+    obstacles: { x: number; z: number; radius: number }[] = [];
+  const lamps = new LampPosts(scene, obstacles);
+  assert.equal(obstacles.length, 15);
+  assert.equal(
+    scene.children.filter((c) => c instanceof T.PointLight).length,
+    4,
+  );
+  for (const flame of lamps.flames) {
+    const shader = {
+      vertexShader: "",
+      fragmentShader: "#include <dithering_fragment>",
+      uniforms: {},
+    };
+    (flame.material as T.Material).onBeforeCompile(
+      shader as unknown as T.WebGLProgramParametersWithUniforms,
+      {} as T.WebGLRenderer,
+    );
+    assert.match(shader.fragmentShader, /gl_FragColor.a=0.900/);
+  }
+  lamps.update(0, new T.Vector3(0, 0, 7));
+  const values = lamps.flames.map(
+    (f) => (f.material as T.MeshBasicMaterial).color.r,
+  );
+  lamps.update(0.2, new T.Vector3(0, 0, 7));
+  assert.ok(
+    lamps.flames.some(
+      (f, i) =>
+        Math.abs((f.material as T.MeshBasicMaterial).color.r - values[i]) >
+        0.01,
+    ),
+  );
+});
+
+test("running creates relative-air trailing even with a following environmental wind", () => {
+  const actor = new Knight(),
+    listener = new T.Vector3();
+  actor.root.position.set(0, heightAt(0, 7), 7);
+  actor.root.rotation.y = Math.PI / 2;
+  for (let i = 0; i < 240; i++) {
+    actor.root.position.x += 4.4 / 60;
+    actor.root.position.y = heightAt(actor.root.position.x, 7);
+    listener.copy(actor.root.position).add(new T.Vector3(0, 2, 4));
+    actor.wind.update(1 / 60, actor.root.position, listener);
+    actor.update(1 / 60, (i + 1) / 60, 4.4, null, 0);
+  }
+  // Long tails must trail; the short torn end is free to curl around the neck.
+  for (const r of actor.cape.ribbons.slice(0, 2))
+    assert.ok(r.points.at(-1)!.x < r.points[0].x - 0.15);
 });

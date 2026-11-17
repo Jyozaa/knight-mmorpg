@@ -1,6 +1,11 @@
 import type { Material } from "three";
 // Semantic alpha travels only in the offscreen HDR buffer. It is not transparency or a color overlay.
-export const SURFACE_TAG = { armor: 0.18, cloth: 0.43, grass: 0.69 } as const;
+export const SURFACE_TAG = {
+  armor: 0.18,
+  cloth: 0.43,
+  grass: 0.69,
+  lamp: 0.9,
+} as const;
 export function tagAsciiSurface(material: Material, tag: number) {
   const compile = material.onBeforeCompile.bind(material),
     cache = material.customProgramCacheKey.bind(material);

@@ -37,13 +37,14 @@ void main(){
  vec3 color=mix(center,diagonal,.18);
  float tag=centerSample.a;
  // Preserve a subcell hero silhouette, but never fill an armor-tagged visor gap.
- if(tag>.82&&strongest.a<.55&&lum(center)<.008&&lum(strongest.rgb)>.018){tag=strongest.a;color=strongest.rgb;}
- float style=tag<.30?1.:(tag<.55?2.:(tag<.82?3.:0.));
+ if(tag>.95&&(strongest.a<.55||(strongest.a>.82&&strongest.a<.95))&&lum(center)<.008&&lum(strongest.rgb)>.018){tag=strongest.a;color=strongest.rgb;}
+ float style=tag<.30?1.:(tag<.55?2.:(tag<.82?3.:(tag<.95&&color.r>color.g*1.5?4.:0.)));
  float raw=mix(mean,peak,.20);
  float value=tone(raw);
- if(style==1.)value=sqrt(1.-exp(-max(0.,raw-.006)*3.8))*smoothstep(.006,.028,raw);
+ if(style==1.)value=pow(max(0.,raw-.006)/(max(0.,raw-.006)+.32),.55)*smoothstep(.006,.028,raw);
  if(style==2.)value=pow(1.-exp(-max(0.,max(color.r,max(color.g,color.b))-.006)*3.4),.75);
  if(style==3.)value=pow(tone(raw),.80);
+ if(style==4.)value=pow(tone(max(color.r,raw)),.6);
  float depth=texture2D(depthTex,p).x;
  float dl=texture2D(depthTex,p-vec2(d.x,0.)).x,dr=texture2D(depthTex,p+vec2(d.x,0.)).x;
  float db=texture2D(depthTex,p-vec2(0.,d.y)).x,du=texture2D(depthTex,p+vec2(0.,d.y)).x;
@@ -63,7 +64,7 @@ void main(){
  vec4 world=inverseVP*vec4(p*2.-1.,depth*2.-1.,1.);world/=world.w;
  vec4 oldClip=previousVP*world;vec2 oldUv=oldClip.xy/oldClip.w*.5+.5;
  vec4 old=texture2D(previous,oldUv);
- float previousStyle=floor(floor(old.g*32.+.5)/8.);
+ float previousStyle=floor(floor(old.g*64.+.5)/8.);
  float motion=length((oldUv-p)*cells);
  float valid=initialized*step(0.,oldUv.x)*step(oldUv.x,1.)*step(0.,oldUv.y)*step(oldUv.y,1.);
  valid*=step(abs(encodedDepth-old.b),${HISTORY_DEPTH_TOLERANCE})*step(motion,7.)*step(abs(value-old.r),.22);
@@ -74,7 +75,7 @@ void main(){
  value=mix(value,stable,valid);
  // History stores luminance, surface/edge classification, depth, and cloth red or grass curvature.
  float red=style==2.?clamp((color.r-max(color.g,color.b))/max(.02,color.r),0.,1.):0.;
- float edgeCode=(orientation+edge*4.+style*8.)/32.;
+ float edgeCode=(orientation+edge*4.+style*8.)/64.;
  if(valid>.5&&previousStyle==style&&motion<.7&&abs(value-old.r)<.035)edgeCode=old.g;
  float curve=step(.5,fract(sin(dot(floor(world.xz*2.),vec2(12.9898,78.233)))*43758.5453));
  if(style==3.&&valid>.5&&motion<.7)curve=old.a;
@@ -86,21 +87,25 @@ uniform sampler2D field,atlas;uniform vec2 cells;
 varying vec2 vUv;
 void main(){
  vec2 cell=floor(vUv*cells),local=fract(vUv*cells);vec4 s=texture2D(field,(cell+.5)/cells);
- float code=floor(s.g*32.+.5),style=floor(code/8.);
+ float code=floor(s.g*64.+.5),style=floor(code/8.);
  float classification=mod(code,8.),edge=step(3.5,classification),orientation=mod(classification,4.);
  float index=min(23.,floor(s.r*24.));
+ // Stable cell/tonal alternatives break rows of identical highlight glyphs without temporal noise.
+ float variant=mod(cell.x+cell.y*3.,3.);
+ if(style==1.&&s.r>.38&&edge<.5)index=clamp(floor(s.r*20.+variant*1.5),0.,23.);
  if(edge>.5&&s.r<.64){
    index=orientation==0.?28.:(orientation==1.?24.:(orientation==2.?29.:25.));
  }
  if(style==3.&&s.r>.055){
    // Curved strokes retain the bent blade silhouette instead of digital-rain columns.
-   index=orientation==0.?30.:(orientation==1.?24.:(orientation==2.?26.+step(.5,s.a):25.));
+   index=orientation==0.?26.+step(.5,s.a):(orientation==1.?24.:(orientation==2.?26.+step(.5,s.a):25.));
  }
  float coverage=texture2D(atlas,vec2((index+local.x)/32.,local.y)).r;
  float ink=smoothstep(.008,.13,s.r)*mix(.32,1.12,pow(s.r,.55));
  if(style==1.)ink=smoothstep(.025,.16,s.r)*(.72+.38*s.r);
  if(style==3.)ink=smoothstep(.025,.15,s.r)*(.46+.55*s.r);
  vec3 tint=mix(vec3(.94,.96,.97),vec3(.72,.045,.065),style==2.?s.a:0.);
+ if(style==4.)tint=vec3(1.,.48,.13);
  coverage=sqrt(coverage);
 
  vec2 uv=vUv-.5;float vignette=1.-.45*dot(uv,uv);

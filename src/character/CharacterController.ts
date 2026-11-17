@@ -40,8 +40,18 @@ export class CharacterController {
       );
     }
     const target = this.dodge > 0 ? 8 : running ? 4.4 : 1.65;
-    this.velocity.x = damp(this.velocity.x, this.direction.x * target, 9, dt);
-    this.velocity.z = damp(this.velocity.z, this.direction.z * target, 9, dt);
+    this.velocity.x = damp(
+      this.velocity.x,
+      this.direction.x * target,
+      length ? 5.5 : 7.5,
+      dt,
+    );
+    this.velocity.z = damp(
+      this.velocity.z,
+      this.direction.z * target,
+      length ? 5.5 : 7.5,
+      dt,
+    );
     const nextX = this.position.x + this.velocity.x * dt,
       nextZ = this.position.z + this.velocity.z * dt;
     const [nx, nz] = resolveObstacles(nextX, nextZ, obstacles);

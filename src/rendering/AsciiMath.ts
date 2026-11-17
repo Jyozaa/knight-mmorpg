@@ -33,7 +33,10 @@ export function stableLuminance(
 export function mapArmorLuminance(value: number) {
   const t = Math.max(0, Math.min(1, (value - 0.006) / (0.028 - 0.006)));
   return (
-    Math.sqrt(1 - Math.exp(-Math.max(0, value - 0.006) * 3.8)) *
+    Math.pow(
+      Math.max(0, value - 0.006) / (Math.max(0, value - 0.006) + 0.32),
+      0.55,
+    ) *
     t *
     t *
     (3 - 2 * t)

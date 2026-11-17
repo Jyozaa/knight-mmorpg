@@ -40,7 +40,7 @@ export class CameraController {
     const yaw = menu ? -0.55 + Math.sin(time * 0.06) * 0.08 : this.yaw;
     this.distance = damp(
       this.distance,
-      this.zoomDistance + Math.min(1, speed / 4.4) * 0.75,
+      this.zoomDistance + Math.min(1, speed / 4.4) * 0.36,
       2.5,
       dt,
     );
@@ -94,7 +94,7 @@ export class CameraController {
     this.camera.lookAt(this.target);
     this.camera.fov = damp(
       this.camera.fov,
-      menu ? 42 : 44 + Math.min(1, speed / 4.4) * 3,
+      menu ? 42 : 44 + Math.min(1, speed / 4.4) * 1.5,
       3,
       dt,
     );

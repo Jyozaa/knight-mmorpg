@@ -1,6 +1,7 @@
 import * as T from "three";
 import { heightAt, terrainMaterial, type Obstacle } from "./terrain";
 import { random } from "../config";
+import { LampPosts } from "./LampPosts";
 import { Grass } from "./Grass";
 import { WindSystem } from "../environment/WindSystem";
 import { populateRocks } from "./rockPlacement";
@@ -9,6 +10,7 @@ export class World {
   readonly obstacles: Obstacle[] = [];
   readonly rest = new T.Vector3(0, heightAt(0, -3), -3);
   readonly grass: Grass;
+  readonly lamps: LampPosts;
   readonly rocks: T.InstancedMesh;
   readonly rockObstacles: Obstacle[] = [];
   private keyLight: T.DirectionalLight;
@@ -67,6 +69,7 @@ export class World {
     const rng = random(9218);
     const dummy = new T.Object3D();
     this.grass = new Grass(scene, wind);
+    this.lamps = new LampPosts(scene, this.obstacles);
     const rockGeo = new T.DodecahedronGeometry(1, 0),
       rockMat = new T.MeshStandardMaterial({
         color: "#303330",
@@ -234,6 +237,7 @@ export class World {
   }
   update(time: number, actor: T.Vector3, camera: T.Vector3) {
     this.grass.update(time, actor, camera);
+    this.lamps.update(time, actor);
     // Keep the lit hill readable during the long pullback while the valley still falls into black.
     (this.scene.fog as T.FogExp2).density =
       0.034 / (1 + camera.distanceTo(actor) * 0.025);

@@ -61,3 +61,11 @@ The v0.2 captures remained too faint and regular. v0.3 replaces ring-like should
 Reviewed actual standing, portrait, grass, walk, run, seated, resting and wide frames, plus successive frames from a recorded motion test. Measured readability guards accompany visual review; neither high FPS nor black-pixel percentage is treated as proof of art quality. The new reference remains local and excluded from Git; no pixels, texture, pose sequence or original media are redistributed.
 
 Remaining art differences: this is still an original procedural suit, not the reference's bespoke sculpt. Rigid plate proportions, cloth contact, tight pivots and distant grass aliasing can be refined further. The extreme wide shot intentionally reduces the knight to a few silver glyphs. The full scene is always live 3D reconstructed in ASCII.
+
+## v0.4 — primary ASCII scarf benchmark
+
+Inspected `references/knight_ref.png` after the user identified its filename. It shows silver-white armor with strong negative-space joints, a narrow dark visor, heavy layered shoulders, a thin waist and a torn crimson scarf streaming across the neck/shoulder. The long tails project laterally without hiding the breastplate. Tall, curved, fine grass rises around the lower legs; the sky stays almost black. This is the primary artistic benchmark for v0.4, supported by renewed frames from the original knight video.
+
+The original interpretation retains the suit and exposes it with three unequal narrow scarf ribbons, removes the held sword in favor of a hip scabbard, raises and curves the meadow, and adds sparse old iron lanterns. Brightness is surface-selective. The renderer uses a rational silver highlight shoulder and stable variation among dense glyphs, rather than increasing all scene brightness.
+
+The image itself does not demonstrate locomotion. KayKit's CC0 authored walk/run curves supply coordinated upper-body timing; project-authored IK, foot contact, acceleration and turning adapt them to the terrain. Actual gameplay recordings are reviewed separately. The result remains an original procedural suit with adapted stylized animation, rather than a reproduction of the image or human mocap.
