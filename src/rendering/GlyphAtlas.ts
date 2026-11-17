@@ -8,7 +8,7 @@ export function createGlyphAtlas() {
   canvas.width = ATLAS_COLUMNS * cellWidth;
   canvas.height = cellHeight;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  ctx.font = "bold 35px monospace";
+  ctx.font = "bold 44px monospace";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const candidates = Array.from(" .`',:;!iltrc+*oahk%8B&#@$MW");
@@ -23,17 +23,17 @@ export function createGlyphAtlas() {
       return { char, coverage };
     })
     .sort((a, b) => a.coverage - b.coverage);
-  // Choose 24 coverage-spaced printable ASCII characters; four oriented edge marks follow.
+  // Choose 24 coverage-spaced printable ASCII characters; eight oriented/curved stroke marks follow.
   const ramp = Array.from(
     { length: 24 },
     (_, i) => measured[Math.round((i * (measured.length - 1)) / 23)].char,
   );
-  const chars = [...ramp, "-", "/", "|", "\\", ".", "'", ":", "+"];
+  const chars = [...ramp, "/", "\\", "(", ")", "-", "|", "'", ","];
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, cellHeight);
   ctx.fillStyle = "#fff";
   chars.forEach((char, i) => {
-    ctx.font = i < 24 ? "bold 35px monospace" : "35px monospace";
+    ctx.font = i < 24 ? "bold 44px monospace" : "40px monospace";
     ctx.fillText(char, i * cellWidth + 16, 25);
   });
   const atlas = new T.CanvasTexture(canvas);

@@ -191,3 +191,50 @@ export class ArmorAssembler {
     return mesh;
   }
 }
+
+/** Domed overlapping shoulder lames, rather than closed rings around a cylinder. */
+export function pauldronPlate(
+  width: number,
+  depth: number,
+  top: number,
+  layer: number,
+) {
+  const positions: number[] = [],
+    indices: number[] = [],
+    segments = 40,
+    rings = 8;
+  const inner = layer === 0 ? 0.015 : 0.48;
+  const profile = (rho: number, a: number) =>
+    top +
+    0.105 * Math.sqrt(Math.max(0, 1 - rho * rho)) -
+    0.065 * rho * rho +
+    0.012 * Math.cos(a * 3 + layer) * rho * rho;
+  for (let r = 0; r <= rings; r++) {
+    const rho = inner + ((1 - inner) * r) / rings;
+    for (let j = 0; j <= segments; j++) {
+      const a = (j / segments) * Math.PI * 2;
+      positions.push(
+        Math.sin(a) * width * rho,
+        profile(rho, a),
+        Math.cos(a) * depth * rho,
+      );
+      if (r && j) {
+        const p = (r - 1) * (segments + 1) + j - 1,
+          c = r * (segments + 1) + j - 1;
+        indices.push(p, c, p + 1, c, c + 1, p + 1);
+      }
+    }
+  }
+  const geometry = new T.BufferGeometry();
+  geometry.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const edge = [];
+  for (let j = 0; j <= 40; j++) {
+    const a = (j / 40) * Math.PI * 2;
+    edge.push(
+      new T.Vector3(Math.sin(a) * width, profile(1, a), Math.cos(a) * depth),
+    );
+  }
+  return { geometry, rim: seam(edge, 0.006, 40) };
+}

@@ -1,3 +1,4 @@
+import { WindSystem } from "../environment/WindSystem";
 import type { Settings } from "../config";
 import type { Vector3 } from "three";
 export class AudioManager {
@@ -11,6 +12,11 @@ export class AudioManager {
   private noise: AudioBuffer | null = null;
   private wind: GainNode | null = null;
   private breath: GainNode | null = null;
+  private windFilter: BiquadFilterNode | null = null;
+  private rustleFilter: BiquadFilterNode | null = null;
+  private rustle: GainNode | null = null;
+  private windPan: StereoPannerNode | null = null;
+  private footfallCount = 0;
   private stepClock = 0;
   private birdClock = 6;
   private bellClock = 18;
@@ -31,9 +37,19 @@ export class AudioManager {
       wind: this.wind?.gain.value ?? 0,
       breathing: this.breath?.gain.value ?? 0,
       master: this.buses.master?.gain.value ?? 0,
+      windTarget: this.windSystem.audio.gain,
+      windFilter: this.windFilter?.frequency.value ?? 0,
+      windFilterTarget: this.windSystem.audio.cutoff,
+      rustle: this.rustle?.gain.value ?? 0,
+      rustleTarget: this.windSystem.audio.rustleGain,
+      gust: this.windSystem.atActor.gust,
+      footfallCount: this.footfallCount,
     };
   }
-  constructor(private settings: Settings) {}
+  constructor(
+    private settings: Settings,
+    readonly windSystem: WindSystem = new WindSystem(),
+  ) {}
   async unlock() {
     if (this.ctx) {
       await this.ctx.resume();
@@ -66,11 +82,31 @@ export class AudioManager {
     source.buffer = this.noise;
     source.loop = true;
     const filter = c.createBiquadFilter();
+    this.windFilter = filter;
     filter.type = "lowpass";
-    filter.frequency.value = 750;
+    filter.frequency.value = this.windSystem.audio.cutoff;
     this.wind = c.createGain();
-    this.wind.gain.value = 0.15;
-    source.connect(filter).connect(this.wind).connect(this.buses.ambience);
+    this.wind.gain.value = this.windSystem.audio.gain;
+    this.windPan = c.createStereoPanner();
+    source
+      .connect(filter)
+      .connect(this.wind)
+      .connect(this.windPan)
+      .connect(this.buses.ambience);
+    const rustleSource = c.createBufferSource();
+    rustleSource.buffer = this.noise;
+    rustleSource.loop = true;
+    this.rustleFilter = c.createBiquadFilter();
+    this.rustleFilter.type = "bandpass";
+    this.rustleFilter.frequency.value = this.windSystem.audio.rustleCutoff;
+    this.rustleFilter.Q.value = 0.55;
+    this.rustle = c.createGain();
+    this.rustle.gain.value = this.windSystem.audio.rustleGain;
+    rustleSource
+      .connect(this.rustleFilter)
+      .connect(this.rustle)
+      .connect(this.buses.ambience);
+    rustleSource.start(c.currentTime, 1.3);
     source.start();
     const breathSource = c.createBufferSource();
     breathSource.buffer = this.noise;
@@ -191,7 +227,8 @@ export class AudioManager {
       filter.disconnect();
       g.disconnect();
     };
-    this.tone(900 + Math.random() * 500, 0.08, 0.012, "sfx");
+    this.tone(stone ? 100 : 78, 0.12, 0.055, "sfx");
+    this.tone(900 + Math.random() * 500, 0.08, 0.009, "sfx");
   }
   update(
     dt: number,
@@ -201,6 +238,7 @@ export class AudioManager {
     cinematicTime: number | null,
     cameraPosition: Vector3,
     forward: Vector3,
+    footfalls = -1,
   ) {
     if (!this.ctx || this.paused) return;
     const c = this.ctx,
@@ -219,11 +257,12 @@ export class AudioManager {
       cinematicTime === null
         ? 0
         : Math.min(1, Math.max(0, (cinematicTime - 8) / 40));
-    this.wind?.gain.setTargetAtTime(
-      0.1 + Math.sin(time * 0.23) * 0.025 + pullback * 0.12,
-      t,
-      0.7,
-    );
+    const wind = this.windSystem.audio;
+    this.wind?.gain.setTargetAtTime(wind.gain, t, 0.1);
+    this.windFilter?.frequency.setTargetAtTime(wind.cutoff, t, 0.1);
+    this.rustle?.gain.setTargetAtTime(wind.rustleGain, t, 0.075);
+    this.rustleFilter?.frequency.setTargetAtTime(wind.rustleCutoff, t, 0.1);
+    this.windPan?.pan.setTargetAtTime(wind.pan, t, 0.2);
     this.breath?.gain.setTargetAtTime(
       cinematicTime === null
         ? 0.001
@@ -231,13 +270,22 @@ export class AudioManager {
       t,
       0.15,
     );
-    if (speed > 0.45) {
+    if (footfalls >= 0) {
+      if (footfalls & 1) {
+        this.step(stone);
+        this.footfallCount++;
+      }
+      if (footfalls & 2) {
+        this.step(stone);
+        this.footfallCount++;
+      }
+    } else if (speed > 0.45) {
       this.stepClock += dt * speed;
-      if (this.stepClock > 1.65) {
+      if (this.stepClock > 0.65) {
         this.stepClock = 0;
         this.step(stone);
       }
-    } else this.stepClock = 1.2;
+    } else this.stepClock = 0;
     this.birdClock -= dt;
     if (this.birdClock < 0) {
       this.birdClock = 8 + Math.random() * 12;

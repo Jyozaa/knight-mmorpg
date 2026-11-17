@@ -1,5 +1,6 @@
 import "./style.css";
 import * as T from "three";
+import { WindSystem } from "./environment/WindSystem";
 import { readSettings } from "./config";
 import { AsciiRenderer } from "./rendering/AsciiRenderer";
 import { World } from "./world/World";
@@ -18,19 +19,20 @@ import { UI, type Screen } from "./ui/UI";
 function boot() {
   const settings = readSettings(),
     ui = new UI(settings);
+  const wind = new WindSystem();
   const renderer = new AsciiRenderer(ui.viewport, settings),
-    world = new World(),
+    world = new World(wind),
     knight =
       new URLSearchParams(location.search).get("knight") === "prototype"
         ? new PrototypeKnight()
-        : new Knight(),
+        : new Knight(wind),
     player = new CharacterController();
   world.scene.add(knight.root);
   knight.root.position.copy(player.position);
   knight.root.rotation.y = player.rotation;
   const camera = new CameraController(player.position, world.obstacles),
     cinematic = new CinematicSystem(),
-    audio = new AudioManager(settings),
+    audio = new AudioManager(settings, wind),
     input = new Input(renderer.renderer.domElement),
     interactions = new InteractionSystem(),
     quest = new QuestProgression();
@@ -142,7 +144,7 @@ function boot() {
     const dt = Math.min(0.05, Math.max(0.0001, raw));
     if (screen !== "paused" && !ui.modalOpen) {
       time += dt;
-      world.update(time, player.position, camera.camera.position);
+
       if (screen === "playing") {
         playingTime += dt;
         if (playingTime > 12) ui.hideHint();
@@ -182,6 +184,9 @@ function boot() {
       );
       visualYaw += yawDelta * (1 - Math.exp(-7 * dt));
       knight.root.rotation.y = visualYaw;
+      camera.camera.getWorldDirection(forward);
+      wind.update(dt, player.position, camera.camera.position, forward);
+      world.update(time, player.position, camera.camera.position);
       const animationStart = performance.now();
       knight.update(
         dt,
@@ -207,6 +212,7 @@ function boot() {
           screen === "cinematic" ? cinematic.time : null,
           camera.camera.position,
           forward,
+          knight instanceof Knight ? knight.consumeFootfalls() : -1,
         );
       }
     }
@@ -265,6 +271,12 @@ function boot() {
           audioUnlocked: audio.unlocked,
           audioContextState: audio.contextState,
           audio: audio.diagnostics,
+          wind: wind.diagnostics,
+          sharedWind:
+            knight instanceof Knight &&
+            world.grass.wind === wind &&
+            knight.cape.wind === wind &&
+            audio.windSystem === wind,
           settings: { ...settings },
         }),
       },

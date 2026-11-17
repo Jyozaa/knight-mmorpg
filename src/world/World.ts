@@ -2,6 +2,7 @@ import * as T from "three";
 import { heightAt, terrainMaterial, type Obstacle } from "./terrain";
 import { random } from "../config";
 import { Grass } from "./Grass";
+import { WindSystem } from "../environment/WindSystem";
 import { populateRocks } from "./rockPlacement";
 export class World {
   readonly scene = new T.Scene();
@@ -13,12 +14,12 @@ export class World {
   private keyLight: T.DirectionalLight;
   private rimLight: T.DirectionalLight;
   private motes: T.Points;
-  constructor() {
+  constructor(readonly wind: WindSystem = new WindSystem()) {
     const scene = this.scene;
     scene.background = new T.Color(0x000000);
     scene.fog = new T.FogExp2(0x000000, 0.034);
     scene.add(new T.HemisphereLight("#ebeee9", "#000000", 0.12));
-    const sun = new T.DirectionalLight("#f3f4ed", 8.0);
+    const sun = new T.DirectionalLight("#f4f5f0", 10.0);
     sun.position.set(-8, 20, 16);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -32,7 +33,7 @@ export class World {
     sun.shadow.normalBias = 0.012;
     scene.add(sun, sun.target);
     this.keyLight = sun;
-    const rim = new T.DirectionalLight("#dde2e0", 3.6);
+    const rim = new T.DirectionalLight("#e1e5e5", 2.6);
     rim.position.set(6, 18, -12);
     scene.add(rim, rim.target);
     this.rimLight = rim;
@@ -65,7 +66,7 @@ export class World {
     scene.add(ground);
     const rng = random(9218);
     const dummy = new T.Object3D();
-    this.grass = new Grass(scene);
+    this.grass = new Grass(scene, wind);
     const rockGeo = new T.DodecahedronGeometry(1, 0),
       rockMat = new T.MeshStandardMaterial({
         color: "#303330",

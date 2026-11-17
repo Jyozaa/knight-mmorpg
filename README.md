@@ -2,7 +2,7 @@
 
 _A world waiting to be heard._
 
-A playable third-person fantasy scene reconstructed entirely from ASCII glyphs on the GPU. Version 0.2 overhauls **The Knight on the Hill** with black negative space, an original detailed skinned knight, clustered curved grass, contact-driven animation and a refined resting cinematic. The existing controls, audio, UI and hilltop interaction are preserved. This is a vertical slice, not the full five-chapter RPG.
+A playable third-person fantasy scene reconstructed entirely from ASCII glyphs on the GPU. Version 0.3 refines **The Knight on the Hill** with readable silver armor, a deep red cape, curved grass and one spatial wind field shared by animation and audio. The existing controls, audio, UI and hilltop interaction are preserved. This is a vertical slice, not the full five-chapter RPG.
 
 ![Live title scene](docs/screenshots/title.webp)
 
@@ -36,15 +36,14 @@ Keyboard/mouse gameplay is supported; menus adapt to smaller viewports.
 
 Walking is 1.65 m/s and running is 4.4 m/s, matched to the new leg stride. Left mouse combat is reserved for a future milestone.
 
-## What changed in 0.2
+## What changed in 0.3
 
-- Predominantly black scene, restrained fill, silver key/rim, black distance fog and no colored sky or lifted dark terrain.
-- Original fitted Gothic armor: projecting visor, plate contours/flutes, layered pauldrons, real mail links, gauntlet fingers, tassets, sabatons, detailed sword, compact shield and pleated mantle.
-- An 18-joint SkinnedMesh batches roughly 105,000 armor triangles into five material draws. Original GLB interchange asset and modeling source are included; no third-party knight was used.
-- Distance-driven walk and distinct run gait, world-space stance anchors, two-bone terrain IK, pelvis reach correction, foot correction steps, torso counter-motion, breathing and a staged rest/get-up sequence.
-- Five curved grass tuft templates with patch clustering, clearings, world-direction gusts, planted roots and distance detail reduction.
-- Measured-density glyph atlas, depth-derived shape detail, oriented ASCII outlines, camera-reprojected history and rejection on motion/disocclusion.
-- Refined follow, wheel zoom, low cinematic side framing, real lint, expanded tests and CI.
+- Refined the original 18-joint suit toward the new kneeling-knight **design** reference: rounded closed helmet, domed overlapping pauldrons, heavier cuirass, reinforced gauntlets/greaves, stable weathered-steel shading and a long crimson cloak/tabard. Gameplay still begins standing.
+- Added semantic surface tags to the HDR scene buffer. Armor gets selective silver reconstruction, dark gaps remain dark, red cloth retains its hue and grass uses thin curved glyphs. The background stays black; no ordinary 3D image is composited into the output.
+- One `WindSystem` drives grass bending, cape motion, wind gain/filtering and grass rustle. Gusts propagate at 2.8 m/s with shared direction, intensity and turbulence. Audio samples the actor/listener field, accounts for distance and uses smooth automation.
+- Shorter irregular grass blades bend from planted roots. World-anchored stroke choice avoids repeating vertical columns.
+- Added stance-driven footstep sounds, boot impact settling and support-side weight transfer while retaining terrain IK and the rest/get-up timeline.
+- Preserved gameplay, controls, audio buses, UI, rock instancing and the 55-second cinematic. The hero retains a small silver highlight through the wide pullback.
 
 The model remains original procedural art, and animation remains contact-driven procedural work rather than authored/mocap clips. Cloth is GPU-deformed, not simulated. Those distinctions and remaining limits are described in [architecture](docs/ARCHITECTURE.md) and [visual study](docs/VISUAL_REFERENCES.md).
 
@@ -59,7 +58,7 @@ npm run build
 npm run preview
 ```
 
-ESLint performs real code linting; Prettier checks formatting separately. GitHub Actions runs type checking, lint, format, unit tests and build on pushes/PRs. The 17 system tests include rock matrices versus colliders, GLB skin data, grass templates, temporal behavior, foot planting/clearance, rest/reverse at 30/60/144 Hz, camera continuity and existing movement/interaction systems.
+ESLint performs real code linting; Prettier checks formatting separately. GitHub Actions runs type checking, lint, format, unit tests and build on pushes/PRs. The 23 system tests include rock matrices versus colliders, GLB skin data, grass templates, temporal behavior, foot planting/clearance, rest/reverse at 30/60/144 Hz, camera continuity existing movement/interaction systems, shared wind identity/propagation and gust/audio correlation.
 
 With dev or preview running in another terminal:
 
@@ -70,7 +69,7 @@ npm run test:browser
 TEST_URL='http://localhost:4173/?diagnostics' npm run test:browser
 ```
 
-The test uses installed Google Chrome. To use downloaded Chromium, run `npx playwright install chromium ffmpeg`, then `BROWSER_CHANNEL=chromium npm run test:browser`. It drives actual inputs, captures all eight requested views, records `test-results/overhaul-motion.webm`, checks predominantly black output, audio, pause/rest/return, settings/fullscreen and errors. Full PNGs, video and detailed metrics remain in ignored `test-results/`. Diagnostic snapshots are read-only and available in development or with `?diagnostics`.
+The test uses installed Google Chrome. To use downloaded Chromium, run `npx playwright install chromium ffmpeg`, then `BROWSER_CHANNEL=chromium npm run test:browser`. It drives actual inputs, captures all eight requested views, records `test-results/overhaul-motion.webm`, checks silver/red readability, predominantly black output, shared GPU/CPU wind, live audio correlation, pause/rest/return, settings/fullscreen and errors. Full PNGs, video and detailed metrics remain in ignored `test-results/`. Diagnostic snapshots are read-only and available in development or with `?diagnostics`.
 
 `npm run build` creates `dist/` for static hosting, with relative URLs for subpaths. No backend, account, CDN, reference video or character download is required at runtime.
 

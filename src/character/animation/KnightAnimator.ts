@@ -26,6 +26,16 @@ export class KnightAnimator {
   private run = 0;
   private initialized = false;
   private lastRest = 0;
+  private priorContacts = [true, true];
+  private landings = 0;
+  private impact = 0;
+  private impactVelocity = 0;
+  private support = 0;
+  consumeFootfalls() {
+    const events = this.landings;
+    this.landings = 0;
+    return events;
+  }
   private restStartFeet = [new T.Vector3(), new T.Vector3()];
   private previous = new T.Vector3();
   private velocity = new T.Vector3();
@@ -118,13 +128,24 @@ export class KnightAnimator {
     const cycle = Math.PI * 2 * this.phase;
     const stride = this.stride * (1 - restWeight),
       run = this.run * (1 - restWeight);
+    this.impactVelocity += (-this.impact * 150 - this.impactVelocity * 22) * dt;
+    this.impact += this.impactVelocity * dt;
+    const planted =
+      this.feet[0].contact && !this.feet[1].contact
+        ? -1
+        : this.feet[1].contact && !this.feet[0].contact
+          ? 1
+          : 0;
+    this.support = damp(this.support, planted, 9, dt);
     const bob =
       (Math.cos(cycle * 2) * 0.012 + run * Math.abs(Math.sin(cycle)) * 0.065) *
       stride;
     r.hips.position.set(
       Math.sin(cycle) * 0.021 * stride * (1 - restWeight) +
+        this.support * 0.012 * stride +
         Math.sin(time * 0.6) * 0.005 * (1 - stride) * (1 - restWeight),
-      1.01 -
+      1.01 +
+        this.impact * (1 - restWeight) -
         0.1 * stride -
         0.02 * run +
         bob -
@@ -271,6 +292,19 @@ export class KnightAnimator {
         r.hands[i].rotation.x = -1.0 * support;
       }
       r.arms[i].rotation.x += dodge * 0.2;
+    }
+    for (let i = 0; i < 2; i++) {
+      const contact = this.feet[i].contact;
+      if (
+        contact &&
+        !this.priorContacts[i] &&
+        restTime === null &&
+        speed > 0.35
+      ) {
+        this.landings |= 1 << i;
+        this.impactVelocity -= 0.042 + 0.018 * this.run;
+      }
+      this.priorContacts[i] = contact;
     }
     this.lastRest = rest;
     this.root.updateMatrixWorld(true);

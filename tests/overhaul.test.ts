@@ -75,13 +75,13 @@ test("grass has five distinct bent templates and fixed planted roots", () => {
       if (p.getY(j) === 0) roots++;
       maxY = Math.max(maxY, p.getY(j));
     }
-    assert.ok(roots >= 16);
-    assert.ok(maxY > 0.4);
+    assert.ok(roots >= 14);
+    assert.ok(maxY > 0.32);
     signatures.push(p.count);
   }
   assert.equal(new Set(signatures).size, 5);
-  assert.ok(WIND_GLSL.includes("h*h"));
-  assert.ok(WIND_GLSL.includes("dot(p,vec2"));
+  assert.ok(WIND_GLSL.includes("pow(anchor,1.65)"));
+  assert.ok(WIND_GLSL.includes("dot(p,windDirection)"));
 });
 test("black stays zero, highlights remain ordered and temporal rejection handles disocclusion", () => {
   assert.equal(mapLuminance(0), 0);

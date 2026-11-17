@@ -16,6 +16,10 @@ Playable hilltop exploration, third-person controls, terrain and object collisio
 - Shared rock render/collision placement with regression coverage.
 - ESLint, expanded tests at 30/60/144 Hz, browser image/video captures, opt-in CPU/GPU profiling and GitHub Actions.
 
+## Complete — 0.3 readable steel and shared wind
+
+Rounded closed helmet, domed layered pauldrons, procedural steel wear, long crimson cape/tabard, selective surface-aware ASCII reconstruction, curved/world-anchored grass marks, stance-triggered footfalls and impact settling. A single spatial WindSystem drives grass, cloth, wind audio filtering/volume and nearby rustle. GPU/CPU field parity and live audio correlation are verified alongside existing controls, rock placement, IK and the hilltop sequence.
+
 ## Recommended next art milestone
 
 Have an animator author walk/run/start/stop/turn/sit/lie/get-up clips against the exported rig or a commissioned compatible rig. Crossfade those clips through AnimationMixer, retain terrain/stance corrections, refine hand/sword placement on uneven terrain, and add cloth contact. Continue evaluating small-scale grass aliasing and silhouettes across GPUs. These are refinement tasks for the same hilltop; no new story content was added during this overhaul.

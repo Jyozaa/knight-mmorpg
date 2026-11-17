@@ -1,6 +1,6 @@
 {
   "name": "the-last-bell",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "test:browser": "node tests/browser.mjs",
+    "test:browser": "tsx tests/browser.mjs",
     "lint": "eslint src tests scripts vite.config.ts eslint.config.js",
     "format": "prettier --write src tests scripts vite.config.ts eslint.config.js index.html package.json tsconfig.json docs README.md .github",
     "format:check": "prettier --check src tests scripts vite.config.ts eslint.config.js index.html package.json tsconfig.json docs README.md .github",

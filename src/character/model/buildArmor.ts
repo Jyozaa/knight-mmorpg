@@ -1,5 +1,7 @@
 import * as T from "three";
+import { tagAsciiSurface, SURFACE_TAG } from "../../rendering/SurfaceStyle";
 import {
+  pauldronPlate,
   ArmorAssembler,
   armorLoft,
   ellipseSeam,
@@ -23,13 +25,13 @@ export interface Rig {
 const v = (x: number, y: number, z: number) => new T.Vector3(x, y, z);
 export function buildArmor(root: T.Group) {
   const steel = new T.MeshStandardMaterial({
-    color: "#bfc2c0",
-    metalness: 0.38,
-    roughness: 0.43,
+    color: "#c9cdca",
+    metalness: 0.24,
+    roughness: 0.52,
   });
   const edge = new T.MeshStandardMaterial({
     color: "#e1e4df",
-    metalness: 0.42,
+    metalness: 0.28,
     roughness: 0.31,
   });
   const mail = new T.MeshStandardMaterial({
@@ -46,6 +48,32 @@ export function buildArmor(root: T.Group) {
     metalness: 0.4,
     roughness: 0.5,
   });
+  for (const material of [steel, edge]) {
+    material.onBeforeCompile = (shader) => {
+      shader.vertexShader =
+        "varying vec3 armorPosition;\n" + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\n armorPosition=position;",
+      );
+      shader.fragmentShader =
+        "varying vec3 armorPosition;\n" + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        float hammer=sin(armorPosition.x*165.+sin(armorPosition.y*130.)*2.)*sin(armorPosition.z*140.+armorPosition.y*87.);
+        float patina=sin(armorPosition.y*32.+armorPosition.x*18.)*sin(armorPosition.z*41.-armorPosition.x*27.);
+        float scratch=pow(max(0.,sin(armorPosition.y*740.+sin(armorPosition.x*71.)*.9)),26.);
+        diffuseColor.rgb*=.91+hammer*.045+patina*.075+scratch*.035;
+      `,
+      );
+    };
+    material.customProgramCacheKey = () => "hammered-silver-v03";
+  }
+  for (const material of [steel, edge, mail, leather, brass]) {
+    material.fog = false;
+    tagAsciiSurface(material, SURFACE_TAG.armor);
+  }
   const b = new ArmorAssembler(root, [steel, edge, mail, leather, brass]);
   const joint = (
     name: string,
@@ -73,17 +101,17 @@ export function buildArmor(root: T.Group) {
   const chestSections: Section[] = [
     { y: -0.23, width: 0.218, depth: 0.125 },
     { y: -0.18, width: 0.232, depth: 0.14 },
-    { y: -0.08, width: 0.28, depth: 0.155 },
-    { y: 0.04, width: 0.326, depth: 0.165 },
+    { y: -0.08, width: 0.28, depth: 0.172 },
+    { y: 0.04, width: 0.326, depth: 0.19 },
     { y: 0.14, width: 0.31, depth: 0.145 },
     { y: 0.21, width: 0.245, depth: 0.115 },
     { y: 0.24, width: 0.14, depth: 0.09 },
   ];
-  b.add(chest, armorLoft(chestSections, 18, 0.2));
+  b.add(chest, armorLoft(chestSections, 10, 0.12));
   for (const y of [-0.2, -0.15]) b.add(chest, ellipseSeam(y, 0.235, 0.147), 1);
   // Embossed ribs, rolled armhole edges and tapering decorative flutes.
   for (const side of [-1, 1]) {
-    for (let i = 1; i <= 5; i++)
+    for (let i = 1; i <= 4; i++)
       b.add(
         chest,
         seam(
@@ -266,10 +294,10 @@ export function buildArmor(root: T.Group) {
       [
         { y: 0.005, width: 0.13, depth: 0.115, z: -0.015 },
         { y: 0.09, width: 0.151, depth: 0.143, z: -0.013 },
-        { y: 0.19, width: 0.145, depth: 0.136, z: -0.025 },
-        { y: 0.27, width: 0.105, depth: 0.11, z: -0.035 },
-        { y: 0.325, width: 0.015, depth: 0.035, z: -0.025 },
-        { y: 0.328, width: 0.001, depth: 0.003, z: -0.025 },
+        { y: 0.19, width: 0.151, depth: 0.135, z: -0.025 },
+        { y: 0.255, width: 0.122, depth: 0.109, z: -0.035 },
+        { y: 0.285, width: 0.058, depth: 0.06, z: -0.025 },
+        { y: 0.296, width: 0.001, depth: 0.003, z: -0.025 },
       ],
       0,
       0.03,
@@ -282,7 +310,7 @@ export function buildArmor(root: T.Group) {
       [
         { y: 0.035, width: 0.135, depth: 0.13, z: 0.005 },
         { y: 0.085, width: 0.148, depth: 0.165, z: 0.01 },
-        { y: 0.125, width: 0.146, depth: 0.19, z: 0.012 },
+        { y: 0.125, width: 0.146, depth: 0.155, z: 0.012 },
       ],
       0,
       0.16,
@@ -295,8 +323,8 @@ export function buildArmor(root: T.Group) {
     head,
     armorLoft(
       [
-        { y: 0.145, width: 0.144, depth: 0.185, z: 0.01 },
-        { y: 0.168, width: 0.142, depth: 0.165, z: 0.002 },
+        { y: 0.145, width: 0.144, depth: 0.155, z: 0.01 },
+        { y: 0.168, width: 0.142, depth: 0.145, z: 0.002 },
         { y: 0.204, width: 0.133, depth: 0.127, z: -0.01 },
       ],
       0,
@@ -307,8 +335,8 @@ export function buildArmor(root: T.Group) {
     ),
     1,
   );
-  b.add(head, ellipseSeam(0.127, 0.148, 0.19, 0.013, -1.45, 1.45, 0.005), 1);
-  b.add(head, ellipseSeam(0.145, 0.146, 0.185, 0.012, -1.45, 1.45, 0.004), 0);
+  b.add(head, ellipseSeam(0.127, 0.148, 0.155, 0.013, -1.45, 1.45, 0.005), 1);
+  b.add(head, ellipseSeam(0.145, 0.146, 0.155, 0.012, -1.45, 1.45, 0.004), 0);
   b.add(
     head,
     armorLoft(
@@ -345,7 +373,7 @@ export function buildArmor(root: T.Group) {
             0.001,
           ),
           3,
-          [side * (0.035 + j * 0.019), 0.065 + r * 0.026, 0.197 - j * 0.006],
+          [side * (0.035 + j * 0.019), 0.065 + r * 0.026, 0.165 - j * 0.005],
         );
   }
   b.add(
@@ -353,8 +381,8 @@ export function buildArmor(root: T.Group) {
     seam(
       [
         v(0, 0.19, -0.161),
-        v(0, 0.295, -0.09),
-        v(0, 0.331, -0.023),
+        v(0, 0.271, -0.09),
+        v(0, 0.299, -0.023),
         v(0, 0.277, 0.08),
         v(0, 0.214, 0.127),
       ],
@@ -388,30 +416,19 @@ export function buildArmor(root: T.Group) {
       8,
       28,
     );
-    for (let i = 0; i < 4; i++) {
-      const y = 0.1 - i * 0.063,
-        w = 0.18 - i * 0.012,
-        d = 0.153 - i * 0.008;
-      b.add(
-        arm,
-        armorLoft(
-          [
-            { y: y + 0.04, width: w * 0.65, depth: d * 0.75 },
-            { y: y + 0.02, width: w, depth: d },
-            { y: y - 0.055, width: w * 0.98, depth: d * 0.98 },
-          ],
-          12,
-          0.02,
-          32,
-        ),
-        0,
-        [side * 0.035, 0, 0],
-      );
-      b.add(arm, ellipseSeam(y - 0.055, w * 0.98, d * 0.98), 1, [
-        side * 0.035,
-        0,
-        0,
-      ]);
+    for (let layer = 0; layer < 4; layer++) {
+      const width = 0.205 - layer * 0.014,
+        depth = 0.175 - layer * 0.011,
+        top = 0.045 - layer * 0.06;
+      const plate = pauldronPlate(width, depth, top, layer);
+      b.add(arm, plate.geometry, 0, [side * 0.04, 0, 0]);
+      b.add(arm, plate.rim, 1, [side * 0.04, 0, 0]);
+      for (const a of [-1.05, -0.4, 0.4, 1.05])
+        b.add(arm, new T.IcosahedronGeometry(0.006, 1), 1, [
+          side * 0.04 + Math.sin(a) * width * 0.88,
+          top - 0.025,
+          Math.cos(a) * depth * 0.88,
+        ]);
     }
     b.add(
       arm,
@@ -482,6 +499,13 @@ export function buildArmor(root: T.Group) {
         ellipseSeam(y, y < -0.2 ? 0.063 : 0.085, y < -0.2 ? 0.073 : 0.087),
         1,
       );
+    for (const sideRivet of [-1, 1])
+      for (let row = 0; row < 3; row++)
+        b.add(forearm, new T.IcosahedronGeometry(0.0045, 1), 1, [
+          sideRivet * 0.062,
+          -0.1 - row * 0.055,
+          0.072,
+        ]);
     // Flared cuff, five metacarpal lames and separately modeled articulated fingers.
     b.add(
       hand,

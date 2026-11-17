@@ -29,3 +29,13 @@ export function stableLuminance(
   if (Math.abs(current - previous) < HISTORY_DEADBAND) return previous;
   return previous + (current - previous) * (1 - Math.exp(-22 * dt));
 }
+
+export function mapArmorLuminance(value: number) {
+  const t = Math.max(0, Math.min(1, (value - 0.006) / (0.028 - 0.006)));
+  return (
+    Math.sqrt(1 - Math.exp(-Math.max(0, value - 0.006) * 3.8)) *
+    t *
+    t *
+    (3 - 2 * t)
+  );
+}

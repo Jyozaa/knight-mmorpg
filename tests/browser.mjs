@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync, renameSync } from "node:fs";
+import { verifyGpuWind } from "./windGpu.mjs";
 import { PNG } from "pngjs";
 mkdirSync("test-results", { recursive: true });
 const browser = await chromium.launch({
@@ -61,6 +62,25 @@ try {
   assert.equal((await snapshot()).audioContextState, "running");
   assert.ok(await page.evaluate(() => !!document.pointerLockElement));
   const start = await snapshot();
+  assert.equal(start.sharedWind, true);
+  result.gpuWind = await verifyGpuWind(page);
+  await page.evaluate(() => {
+    window.__windReview = { samples: [] };
+    const began = performance.now();
+    const timer = setInterval(() => {
+      const s = window.__lastBell.snapshot();
+      window.__windReview.samples.push({
+        gust: s.wind.actor.gust,
+        target: s.wind.audio.gain,
+        actual: s.audio.wind,
+        filterTarget: s.wind.audio.cutoff,
+        filter: s.audio.windFilter,
+        rustleTarget: s.wind.audio.rustleGain,
+        rustle: s.audio.rustle,
+      });
+      if (performance.now() - began > 22000) clearInterval(timer);
+    }, 100);
+  });
   assert.ok(start.audio.rms > 0.000001);
   await page.screenshot({ path: "test-results/standing.png" });
   const standing = PNG.sync.read(readFileSync("test-results/standing.png"));
@@ -79,6 +99,21 @@ try {
   };
   assert.ok(result.image.blackFraction > 0.72);
   assert.ok(visible > 3000);
+  let red = 0,
+    whiteArmor = 0;
+  for (let y = 250; y < 800; y++)
+    for (let x = 530; x < 950; x++) {
+      const i = (y * 1440 + x) * 4,
+        r = standing.data[i],
+        g = standing.data[i + 1],
+        b = standing.data[i + 2];
+      if (r > 40 && r > g * 2 && r > b * 1.5) red++;
+      if (r > 180 && g > 180 && b > 180) whiteArmor++;
+    }
+  result.image.redClothPixels = red;
+  result.image.brightArmorPixels = whiteArmor;
+  assert.ok(red > 1000);
+  assert.ok(whiteArmor > 2500);
   await wait(180);
   const later = PNG.sync.read(await page.screenshot());
   let changed = 0;
@@ -123,6 +158,7 @@ try {
   await wait(450);
   assert.ok((await snapshot()).speed < 0.2);
   assert.equal((await snapshot()).restAvailable, true);
+  assert.ok((await snapshot()).audio.footfallCount >= 6);
   await page.screenshot({ path: "test-results/hilltop.png" });
   log(
     "PASS menu, settings, credits, audio unlock, pointer lock, walking, running, deceleration, rest proximity",
@@ -137,6 +173,7 @@ try {
   assert.equal(paused.screen, "paused");
   await wait(400);
   assert.equal((await snapshot()).cinematicTime, paused.cinematicTime);
+  assert.equal((await snapshot()).wind.time, paused.wind.time);
   await page.getByRole("button", { name: "Continue Journey" }).click();
   await wait(7500);
   const lying = await snapshot();
@@ -163,7 +200,51 @@ try {
   result.performance = (await snapshot()).performance;
   await page.keyboard.press("Backquote");
   assert.ok(wide.audio.breathing < lying.audio.breathing);
-  assert.ok(wide.audio.wind > lying.audio.wind);
+  assert.equal(wide.audio.windTarget, wide.wind.audio.gain);
+  assert.equal(wide.audio.windFilterTarget, wide.wind.audio.cutoff);
+  const windSamples = await page.evaluate(() => window.__windReview.samples);
+  const correlate = (a, b) => {
+    const ma = a.reduce((s, v) => s + v, 0) / a.length,
+      mb = b.reduce((s, v) => s + v, 0) / b.length;
+    let ab = 0,
+      aa = 0,
+      bb = 0;
+    for (let i = 0; i < a.length; i++) {
+      const da = a[i] - ma,
+        db = b[i] - mb;
+      ab += da * db;
+      aa += da * da;
+      bb += db * db;
+    }
+    return ab / Math.sqrt(aa * bb);
+  };
+  result.windCorrelation = {
+    samples: windSamples.length,
+    gustToAudibleGain: correlate(
+      windSamples.map((s) => s.gust),
+      windSamples.map((s) => s.actual),
+    ),
+    gainTracking: correlate(
+      windSamples.map((s) => s.target),
+      windSamples.map((s) => s.actual),
+    ),
+    filterTracking: correlate(
+      windSamples.map((s) => s.filterTarget),
+      windSamples.map((s) => s.filter),
+    ),
+    rustleTracking: correlate(
+      windSamples.map((s) => s.rustleTarget),
+      windSamples.map((s) => s.rustle),
+    ),
+  };
+  assert.ok(result.windCorrelation.samples > 100);
+  assert.ok(result.windCorrelation.gustToAudibleGain > 0.8);
+  assert.ok(result.windCorrelation.gainTracking > 0.95);
+  assert.ok(result.windCorrelation.filterTracking > 0.95);
+  assert.ok(result.windCorrelation.rustleTracking > 0.94);
+  log(
+    "PASS shared GPU/CPU wind, visible gust/audio correlation, red cloth, silver readability and wind pause",
+  );
   await wait(16500);
   assert.equal((await snapshot()).cinematicTime, 55);
   await page.screenshot({ path: "test-results/final-panorama.png" });

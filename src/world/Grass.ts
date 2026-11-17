@@ -2,31 +2,39 @@ import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { random } from "../config";
 import { heightAt, terrainMaterial } from "./terrain";
-export const WIND_GLSL = `
-float windField(vec2 p,float t){
- float front=sin(dot(p,vec2(.075,.043))-t*.55);
- float gust=pow(.5+.5*front,3.);
- float secondary=sin(dot(p,vec2(-.21,.13))-t*.8)*.12;
- return .20+gust*.48+secondary;
-}
-vec3 bendGrass(vec3 p,vec3 world,float t,vec3 actor,vec3 axisX,vec3 axisZ){
+import {
+  WindSystem,
+  WIND_GLSL as SHARED_WIND_GLSL,
+} from "../environment/WindSystem";
+import { tagAsciiSurface, SURFACE_TAG } from "../rendering/SurfaceStyle";
+export const WIND_GLSL =
+  SHARED_WIND_GLSL +
+  `
+vec3 bendGrass(vec3 p,vec3 world,vec3 actor,vec3 axisX,vec3 axisZ){
  float h=max(0.,p.y),anchor=clamp(h/.65,0.,1.);
- float w=windField(world.xz,t);
- vec3 force=vec3(w*h*h*.32,0.,w*h*h*.16);
- float proximity=1.-smoothstep(.25,1.0,distance(world.xz,actor.xz));
- force+=vec3(world.x-actor.x,0.,world.z-actor.z)*proximity*anchor*.22;
+ // Sample the actual blade position, so a tuft's tips don't march in rigid lockstep.
+ vec2 fieldPosition=world.xz+axisX.xz*p.x+axisZ.xz*p.z;
+ vec3 field=sharedWind(fieldPosition);
+ float bend=pow(anchor,1.65);
+ vec3 force=vec3(windDirection.x,0.,windDirection.y)*field.x*bend*.28;
+ vec3 crossWind=vec3(-windDirection.y,0.,windDirection.x);
+ force+=crossWind*field.z*bend*.10;
+ p.y-=field.x*bend*h*.12;
+ float proximity=1.-smoothstep(.25,.9,distance(world.xz,actor.xz));
+ force+=vec3(world.x-actor.x,0.,world.z-actor.z)*proximity*anchor*.18;
  p.x+=dot(force,axisX);p.z+=dot(force,axisZ);
  return p;
-}`;
+}
+`;
 /** Curved, tapered blades are authored into five different coherent tufts. */
 export function grassTemplate(variant: number, sparse = false) {
   const rng = random(315 + variant * 97),
     parts: T.BufferGeometry[] = [];
-  const count = sparse ? 3 : 8 + variant * 2;
+  const count = sparse ? 4 : 7 + variant * 2;
   for (let blade = 0; blade < count; blade++) {
-    const height = 0.26 + rng() * 0.48,
-      width = 0.008 + rng() * 0.013,
-      bend = 0.15 + rng() * 0.4,
+    const height = 0.18 + rng() * 0.43,
+      width = 0.007 + rng() * 0.011,
+      bend = 0.12 + rng() * 0.38,
       angle = rng() * Math.PI * 2;
     const ox = (rng() - 0.5) * 0.2,
       oz = (rng() - 0.5) * 0.2;
@@ -34,14 +42,14 @@ export function grassTemplate(variant: number, sparse = false) {
       indices: number[] = [];
     for (let row = 0; row <= 6; row++) {
       const t = row / 6,
-        c = t * t * bend,
+        c = Math.pow(t, 1.5) * bend,
         w = width * Math.pow(1 - t, 0.7);
       for (const side of [-1, 1]) {
         const bx = side * w + Math.sin(t * 2 + variant) * 0.025 * t;
         const bz = c;
         vertices.push(
           ox + Math.cos(angle) * bx + Math.sin(angle) * bz,
-          t * height,
+          (t - 0.18 * t * t * t) * height,
           oz - Math.sin(angle) * bx + Math.cos(angle) * bz,
         );
       }
@@ -64,10 +72,13 @@ export function grassTemplate(variant: number, sparse = false) {
 export class Grass {
   readonly group = new T.Group();
   readonly batches: T.InstancedMesh[] = [];
-  private time = { value: 0 };
+
   private actor = { value: new T.Vector3() };
   visibleInstances = 0;
-  constructor(scene: T.Scene) {
+  constructor(
+    scene: T.Scene,
+    readonly wind: WindSystem = new WindSystem(),
+  ) {
     this.group.name = "Clustered bent meadow grass";
     scene.add(this.group);
     const rng = random(84751),
@@ -80,22 +91,20 @@ export class Grass {
       side: T.DoubleSide,
     });
     material.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = this.time;
+      Object.assign(shader.uniforms, this.wind.uniforms);
       shader.uniforms.actor = this.actor;
       shader.vertexShader =
-        "uniform float uTime;uniform vec3 actor;\n" +
-        WIND_GLSL +
-        "\n" +
-        shader.vertexShader;
+        "uniform vec3 actor;\n" + WIND_GLSL + "\n" + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
         mat4 grassWorld=modelMatrix*instanceMatrix;
         vec3 base=(grassWorld*vec4(0.,0.,0.,1.)).xyz;
-        transformed=bendGrass(transformed,base,uTime,actor,normalize(grassWorld[0].xyz),normalize(grassWorld[2].xyz));
+        transformed=bendGrass(transformed,base,actor,normalize(grassWorld[0].xyz),normalize(grassWorld[2].xyz));
       `,
       );
     };
+    tagAsciiSurface(material, SURFACE_TAG.grass);
     // Tiles allow camera-distance culling and coarse outer tufts without changing thousands of transforms per frame.
     for (let tx = -5; tx <= 5; tx++)
       for (let tz = -5; tz <= 5; tz++) {
@@ -130,7 +139,7 @@ export class Grass {
             dummy.position.set(x, heightAt(x, z) - 0.012, z);
             dummy.rotation.set(0, rng() * Math.PI * 2, 0);
             const h = 0.6 + rng() * 0.7;
-            dummy.scale.set(0.7 + rng() * 0.6, h, 0.7 + rng() * 0.6);
+            dummy.scale.set(0.7 + rng() * 0.7, h, 0.7 + rng() * 0.7);
             dummy.updateMatrix();
             mesh.setMatrixAt(count, dummy.matrix);
             color.setScalar(0.55 + rng() * 0.45);
@@ -148,7 +157,7 @@ export class Grass {
       }
   }
   update(time: number, actor: T.Vector3, camera: T.Vector3) {
-    this.time.value = time;
+    void time;
     this.actor.value.copy(actor);
     this.visibleInstances = 0;
     for (const batch of this.batches) {
