@@ -6,6 +6,7 @@ import { KnightAnimator } from "./animation/KnightAnimator";
 import { WindSystem } from "../environment/WindSystem";
 import { smoothstep } from "../config";
 import { ImportedAvatar } from "./model/ImportedAvatar";
+import type { PostureMode } from "./animation/PostureLayer";
 export class Knight {
   readonly root = new T.Group();
   readonly rig;
@@ -18,6 +19,8 @@ export class Knight {
   constructor(
     readonly wind: WindSystem = new WindSystem(),
     readonly appearance: "authored" | "imported" = "authored",
+    posture: PostureMode = "neutral",
+    illustrated = false,
   ) {
     this.root.name = "Nameless knight — Gothic harness";
     const model = buildArmor(this.root, wind);
@@ -27,9 +30,14 @@ export class Knight {
     this.cape = new Cape(this.rig, wind);
     if (appearance === "imported") {
       this.mesh.visible = false;
-      this.imported = new ImportedAvatar(this.root, this.rig, wind);
+      this.imported = new ImportedAvatar(
+        this.root,
+        this.rig,
+        wind,
+        illustrated,
+      );
     } else this.sword = new SheathedSword(this.rig, model.materials);
-    this.animator = new KnightAnimator(this.root, this.rig);
+    this.animator = new KnightAnimator(this.root, this.rig, posture);
   }
   update(
     dt: number,
@@ -45,6 +53,7 @@ export class Knight {
       speed,
       this.animator.feet,
       smoothstep(0.6, 3.5, restTime ?? 0),
+      this.animator.posture,
     );
     this.sword?.update(time, speed, smoothstep(0.6, 3.5, restTime ?? 0));
     this.root.updateMatrixWorld(true);

@@ -10,6 +10,7 @@ import {
   springStep,
 } from "./kinematics";
 import { LocomotionClips } from "./LocomotionClips";
+import { PostureLayer, type PostureMode } from "./PostureLayer";
 interface FootState {
   anchor: T.Vector3;
   start: T.Vector3;
@@ -25,6 +26,7 @@ interface FootState {
   correction: T.Vector3;
 }
 export class KnightAnimator {
+  readonly posture: PostureLayer;
   private phase = 0.08;
   private handLag = [0, 0];
   private handVelocity = [0, 0];
@@ -83,8 +85,10 @@ export class KnightAnimator {
   constructor(
     private root: T.Group,
     readonly rig: Rig,
+    posture: PostureMode = "neutral",
   ) {
     this.armHeights = rig.arms.map((b) => b.position.y);
+    this.posture = new PostureLayer(rig, posture);
   }
   update(
     dt: number,
@@ -125,6 +129,7 @@ export class KnightAnimator {
       recline = smoothstep(4.1, 8.8, rest),
       settle = smoothstep(8.5, 10, rest);
     const restWeight = smoothstep(0, 0.4, rest);
+    this.posture.update(dt, speed, restTime);
     this.forward.set(
       Math.sin(this.root.rotation.y),
       0,
@@ -244,6 +249,7 @@ export class KnightAnimator {
     r.chest.scale.y = 1 + Math.sin(time * 1.65) * 0.003;
     blendRest(r.head, pose[3], 0.06 * sit - 0.1 * recline, 0, 0);
     r.head.rotateX(0.012 * tiredWalk);
+    this.posture.applyTorso();
     const limbs = [
       ...r.arms,
       ...r.forearms,
@@ -388,6 +394,7 @@ export class KnightAnimator {
       }
       r.arms[i].rotation.x += dodge * 0.2;
     }
+    this.posture.applyArms();
     for (let i = 0; i < 2; i++) {
       const contact = this.feet[i].contact;
       if (
@@ -503,6 +510,7 @@ export class KnightAnimator {
       state: restTimeState(this.lastRest, this.stopTime, this.run, this.stride),
       acceleration: this.acceleration,
       handLag: [...this.handLag],
+      posture: this.posture.diagnostics,
       fatigueLean: 0.035 * this.stride * (1 - this.run),
       strideBlend: this.stride,
       runBlend: this.run,

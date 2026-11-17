@@ -21,7 +21,7 @@ try {
         if (m.type() === "error") errors.push(m.text());
       });
       await page.goto(
-        `${process.env.TEST_ORIGIN || "http://localhost:5173"}/?diagnostics&compare&knight=${knight}&render=${render}`,
+        `${process.env.TEST_ORIGIN || "http://localhost:5173"}/?diagnostics&compare&camera=legacy&posture=neutral&knight=${knight}&render=${render}`,
       );
       await page.waitForFunction(
         () => window.__lastBell?.snapshot().drawCalls > 0,

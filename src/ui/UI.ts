@@ -17,7 +17,10 @@ export class UI {
   onReturn = () => {};
   onSettings = () => {};
   onFullscreen = () => {};
-  constructor(private settings: Settings) {
+  constructor(
+    private settings: Settings,
+    illustrated = false,
+  ) {
     document.querySelector("#app")!.innerHTML = `
     <main id="world"></main><div class="grain" aria-hidden="true"></div>
     <section id="menu" class="menu">
@@ -32,6 +35,16 @@ export class UI {
     <section id="pause" class="pause-screen" hidden><div><p class="eyebrow">A MOMENT BETWEEN MOMENTS</p><h2>Journey paused.</h2><button id="resume" class="primary">Continue Journey <span aria-hidden="true">↗</span></button><button id="pause-settings" class="text-button">Settings</button><button id="to-menu" class="text-button">Return to title</button></div></section>
     <aside id="help" hidden><p class="eyebrow">YOUR JOURNEY</p><h2>A few things to know.</h2><dl><dt>W A S D</dt><dd>Move</dd><dt>Mouse / Drag</dt><dd>Look around</dd><dt>Shift</dt><dd>Run</dd><dt>Space</dt><dd>Evade</dd><dt>E</dt><dd>Rest by the waystone</dd><dt>Escape</dt><dd>Pause / release mouse</dd><dt>F</dt><dd>Fullscreen</dd><dt>H</dt><dd>Close controls</dd><dt>Backquote</dt><dd>Performance display</dd></dl><p>Double-click the world to capture the mouse.<br/>Follow the ridge toward the small waystone.</p><button id="help-close" class="text-button">Close controls</button></aside>
     <dialog id="modal" aria-labelledby="modal-title"></dialog><div id="diagnostics" hidden></div><div id="error" hidden></div>`;
+    if (illustrated) {
+      document.querySelector("#journey-hint")!.innerHTML =
+        "A / D &nbsp; Travel <span> / </span> W / S &nbsp; Depth <span> / </span> Shift &nbsp; Run";
+      const terms = document.querySelectorAll("#help dt"),
+        descriptions = document.querySelectorAll("#help dd");
+      terms[0].textContent = "A / D · W / S";
+      descriptions[0].textContent = "Travel left / right · shallow depth";
+      descriptions[1].textContent = "Adjust framing";
+      document.querySelector(".compass")?.setAttribute("hidden", "");
+    }
     this.viewport = document.querySelector("#world")!;
     this.menu = document.querySelector("#menu")!;
     this.hud = document.querySelector("#hud")!;

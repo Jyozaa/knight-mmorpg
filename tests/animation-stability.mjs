@@ -15,7 +15,7 @@ try {
       { heightAt } = await import("/src/world/terrain.ts");
     const results = [];
     for (const hz of [30, 60, 144]) {
-      const k = new Knight(undefined, "imported");
+      const k = new Knight(undefined, "imported", "weary", true);
       k.root.position.set(0, heightAt(0, 7), 7);
       k.root.rotation.y = Math.PI;
       let maxFootError = 0,
@@ -49,6 +49,11 @@ try {
             k.imported.inspectSurfaces().minimumTerrainClearance,
           );
       }
+      const posture = k.animator.posture.diagnostics;
+      const native = {
+        shoulders: k.imported.diagnostics.shoulders,
+        neckOffset: k.imported.diagnostics.neckOffset,
+      };
       let minRestTerrain = Infinity,
         worstRest = null;
       for (let i = 0; i < hz * 10; i++) {
@@ -63,6 +68,8 @@ try {
       }
       results.push({
         hz,
+        posture,
+        native,
         minRestTerrain,
         worstRest,
         maxFootError,
@@ -73,9 +80,9 @@ try {
     }
     return results;
   });
-  mkdirSync("test-results/v06", { recursive: true });
+  mkdirSync("test-results/v07", { recursive: true });
   writeFileSync(
-    "test-results/v06/animation-stability.json",
+    "test-results/v07/animation-stability.json",
     JSON.stringify(result, null, 2),
   );
   console.log(result);
@@ -90,6 +97,9 @@ try {
       `${r.hz} Hz rest terrain ${r.minRestTerrain}`,
     );
     assert.ok(r.maxArmorAngle < 0.03);
+    assert.ok(r.posture.weight > 0.8);
+    assert.ok(r.native.shoulders.every((x) => x > 0.06 && x < 0.1));
+    assert.ok(r.native.neckOffset > 0.012);
     assert.ok(
       r.maxJointVelocity < 20,
       `${r.hz} Hz joint spike ${r.maxJointVelocity}`,

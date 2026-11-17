@@ -53,3 +53,7 @@ Reference files and internal reference-versus-game contact sheets stay local and
 ## Fonts and sound
 
 Cormorant Garamond and Manrope remain locally bundled under SIL OFL 1.1, with their complete licenses in `public/fonts/`. Dependency licenses remain in installed packages. AudioManager synthesizes wind/rustle, stance-triggered boots, armor ticks, breathing, birds, bells and sparse drone tones. Shared spatial wind drives the audible gain/filter envelopes; these are synthesized carriers, not field recordings or commercial music.
+
+## v0.7 presentation changes
+
+No new external artwork, models, motion clips or sound files are introduced. Camera composition, anatomical posture offsets, depth reconstruction, grass contact/parallax and the recomposed procedural tower are project code. Tower geometry remains shared by both comparison modes; its new placement/scale includes matching collision and spatial bell coordinates. The supplied knight's permission record, CMU notices, Kenney foley hashes and original source files are retained without changing their license claims. Original visual-reference media remains excluded.

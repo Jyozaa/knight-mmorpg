@@ -11,7 +11,8 @@ page.on("console", (m) => {
   if (m.type() === "error") errors.push(m.text());
 });
 await page.goto(
-  process.env.TEST_URL || "http://localhost:4173/?diagnostics&render=shaded",
+  process.env.TEST_URL ||
+    "http://localhost:4173/?diagnostics&camera=legacy&posture=neutral&render=shaded",
 );
 await page.waitForFunction(() => window.__lastBell?.snapshot().drawCalls > 0);
 await page.getByRole("button", { name: "Begin Journey", exact: true }).click();

@@ -57,11 +57,21 @@ export class AudioManager {
       footfallCount: this.footfallCount,
       foley: this.foley?.diagnostics ?? null,
       recordedRustle: this.recordedRustle,
+      windPan: this.windPan?.pan.value ?? 0,
+      listener: this.ctx
+        ? [
+            this.ctx.listener.positionX.value,
+            this.ctx.listener.positionY.value,
+            this.ctx.listener.positionZ.value,
+          ]
+        : null,
+      bellPosition: this.bellPosition?.toArray() ?? [-35, 18, -82],
     };
   }
   constructor(
     private settings: Settings,
     readonly windSystem: WindSystem = new WindSystem(),
+    readonly bellPosition?: Vector3,
   ) {}
   async unlock() {
     if (this.ctx) {
@@ -189,7 +199,7 @@ export class AudioManager {
       p.disconnect();
     };
   }
-  bell(position?: Vector3) {
+  bell(position = this.bellPosition) {
     if (!this.ctx) return;
     const c = this.ctx,
       t = c.currentTime,

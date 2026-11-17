@@ -1,0 +1,586 @@
+{
+  "version": "0.7.0",
+  "date": "2026-11-17",
+  "hardware": "Apple M2 Pro, 16 GiB RAM",
+  "node": "26.8.1",
+  "viewport": [1440, 900],
+  "display": {
+    "density": 1.4,
+    "quality": 0.8
+  },
+  "unitTests": 45,
+  "pacing": [
+    {
+      "mode": "legacy",
+      "stats": {
+        "frames": 1767,
+        "p50": 16.69999999999709,
+        "p95": 16.799999999995634,
+        "p99": 16.80000000000291,
+        "max": 16.80000000000291,
+        "over25": 0,
+        "over33": 0,
+        "over50": 0
+      },
+      "stages": {
+        "idle": {
+          "frames": 180,
+          "p50": 16.69999999999891,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000109,
+          "max": 16.80000000000109,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "walk": {
+          "frames": 240,
+          "p50": 16.69999999999891,
+          "p95": 16.700000000000728,
+          "p99": 16.80000000000109,
+          "max": 16.80000000000109,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "run": {
+          "frames": 180,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "stop": {
+          "frames": 146,
+          "p50": 16.69999999999709,
+          "p95": 16.700000000000728,
+          "p99": 16.799999999999272,
+          "max": 16.799999999999272,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "turn": {
+          "frames": 270,
+          "p50": 16.700000000000728,
+          "p95": 16.700000000000728,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "return-facing": {
+          "frames": 90,
+          "p50": 16.700000000000728,
+          "p95": 16.700000000000728,
+          "p99": 16.799999999999272,
+          "max": 16.799999999999272,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "sit/recline": {
+          "frames": 661,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999995634,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        }
+      },
+      "longTasks": [],
+      "outliers": [],
+      "meanCpuMs": {
+        "animationCpuMs": 1.111773170529651,
+        "cameraCpuMs": 0.019341061122989302,
+        "sceneCpuMs": 1.5287257393573523,
+        "asciiCpuMs": 0.032708161664315206,
+        "grassCpuMs": 0.8793103450845028
+      },
+      "meanGpuMs": {
+        "scene": 2.8926876551724137,
+        "ascii": 1.1687639310344828,
+        "grass": 2.4230859285714286
+      }
+    },
+    {
+      "mode": "2p5d",
+      "stats": {
+        "frames": 1766,
+        "p50": 16.69999999999709,
+        "p95": 16.700000000004366,
+        "p99": 16.80000000000291,
+        "max": 16.80000000000291,
+        "over25": 0,
+        "over33": 0,
+        "over50": 0
+      },
+      "stages": {
+        "idle": {
+          "frames": 179,
+          "p50": 16.69999999999891,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000109,
+          "max": 16.80000000000109,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "walk": {
+          "frames": 241,
+          "p50": 16.69999999999891,
+          "p95": 16.700000000000728,
+          "p99": 16.799999999999272,
+          "max": 16.80000000000109,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "run": {
+          "frames": 180,
+          "p50": 16.700000000000728,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "stop": {
+          "frames": 145,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999999272,
+          "p99": 16.799999999999272,
+          "max": 16.799999999999272,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "turn": {
+          "frames": 271,
+          "p50": 16.700000000000728,
+          "p95": 16.700000000000728,
+          "p99": 16.799999999999272,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "return-facing": {
+          "frames": 90,
+          "p50": 16.700000000000728,
+          "p95": 16.799999999999272,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        },
+        "sit/recline": {
+          "frames": 660,
+          "p50": 16.69999999999709,
+          "p95": 16.799999999995634,
+          "p99": 16.80000000000291,
+          "max": 16.80000000000291,
+          "over25": 0,
+          "over33": 0,
+          "over50": 0
+        }
+      },
+      "longTasks": [],
+      "outliers": [],
+      "meanCpuMs": {
+        "animationCpuMs": 1.1462973371284901,
+        "cameraCpuMs": 0.02113863196782262,
+        "sceneCpuMs": 1.1132744794685991,
+        "asciiCpuMs": 0.03451445998331639,
+        "grassCpuMs": 0.5413793109614273
+      },
+      "meanGpuMs": {
+        "scene": 2.259521,
+        "ascii": 1.1679391034482758,
+        "grass": 1.6292033793103449
+      }
+    }
+  ],
+  "nativeStability": [
+    {
+      "hz": 30,
+      "posture": {
+        "mode": "weary",
+        "weight": 0.9999729365281224,
+        "targetWeight": 0.9999975106894698,
+        "run": 1.7780789500860178e-5,
+        "pelvisPitch": -0.02199940460361869,
+        "lowerSpinePitch": 0.06199970892879028,
+        "chestPitch": 0.08799704944460945,
+        "headPitch": 0.07799710671562875,
+        "neckForward": 0.0179995128575062,
+        "shoulderProtraction": 0.08499769960489041
+      },
+      "native": {
+        "shoulders": [0.08499663293324693, 0.08498935753203751],
+        "neckOffset": 0.019826445769682316
+      },
+      "minRestTerrain": 0.0010449593359034282,
+      "worstRest": {
+        "time": 2.933333333333333,
+        "minimumTerrainClearance": 0.0010449593359034282,
+        "mesh": "Cube010",
+        "bone": "footL",
+        "footErrors": [3.954575212778787e-8, 5.399545860524982e-8]
+      },
+      "maxFootError": 0.00815296756700404,
+      "maxJointVelocity": 6.574353233438332,
+      "minTerrain": 0.0021401792432467204,
+      "maxArmorAngle": 0.01193985711740863
+    },
+    {
+      "hz": 60,
+      "posture": {
+        "mode": "weary",
+        "weight": 0.9999730053054123,
+        "targetWeight": 0.9999976351988066,
+        "run": 1.6891437095780246e-5,
+        "pelvisPitch": -0.02199940611671907,
+        "lowerSpinePitch": 0.061999643825462664,
+        "chestPitch": 0.08799708395548055,
+        "headPitch": 0.07799715121065304,
+        "neckForward": 0.01799951409549742,
+        "shoulderProtraction": 0.08499770545096005
+      },
+      "native": {
+        "shoulders": [0.08499663877936826, 0.08498936337865902],
+        "neckOffset": 0.019826447133328016
+      },
+      "minRestTerrain": 0.001036858751578329,
+      "worstRest": {
+        "time": 3,
+        "minimumTerrainClearance": 0.001036858751578329,
+        "mesh": "Cube010",
+        "bone": "footL",
+        "footErrors": [4.000446555307019e-8, 4.9270188153059076e-8]
+      },
+      "maxFootError": 0.014187959420995079,
+      "maxJointVelocity": 7.264462489583523,
+      "minTerrain": 0.002429092353654738,
+      "maxArmorAngle": 0.01193985711740863
+    },
+    {
+      "hz": 144,
+      "posture": {
+        "mode": "weary",
+        "weight": 0.99997302499454,
+        "targetWeight": 0.9999977040749719,
+        "run": 1.6399464486498153e-5,
+        "pelvisPitch": -0.021999406549879877,
+        "lowerSpinePitch": 0.06199960667338613,
+        "chestPitch": 0.08799710143081196,
+        "headPitch": 0.07799717439260125,
+        "neckForward": 0.017999514449901718,
+        "shoulderProtraction": 0.0849977071245359
+      },
+      "native": {
+        "shoulders": [0.08499664045298418, 0.0849893650524181],
+        "neckOffset": 0.019826447523702703
+      },
+      "minRestTerrain": 0.001035190879266068,
+      "worstRest": {
+        "time": 3,
+        "minimumTerrainClearance": 0.001035190879266068,
+        "mesh": "Cube010",
+        "bone": "footL",
+        "footErrors": [4.0008380020267585e-8, 4.9262598739367833e-8]
+      },
+      "maxFootError": 0.017963778846917394,
+      "maxJointVelocity": 7.707226175797921,
+      "minTerrain": 0.002492928495108515,
+      "maxArmorAngle": 0.01193985711740863
+    }
+  ],
+  "browserImages": [
+    {
+      "variant": {
+        "camera": "2p5d",
+        "posture": "weary",
+        "projection": "orthographic",
+        "render": "ascii"
+      },
+      "image": {
+        "darkFraction": 0.9227706290849673,
+        "red": 667,
+        "white": 2037
+      }
+    },
+    {
+      "variant": {
+        "camera": "2p5d",
+        "posture": "neutral",
+        "projection": "weak",
+        "render": "ascii"
+      },
+      "image": {
+        "darkFraction": 0.9258547794117648,
+        "red": 748,
+        "white": 2027
+      }
+    }
+  ],
+  "wideBodyPixels": 386,
+  "gpuWind": {
+    "points": 4,
+    "maximumError": 0.00283877865522586
+  },
+  "grassShaderContact": [
+    [0.007843137254901933, 0.007843137254901933, 0.007843137254901933],
+    [0.007843137254901933, 0.007843137254901933, 0.007843137254901933],
+    [0.07058823529411784, 0.49411764705882355, 0.07058823529411784],
+    [0.30588235294117627, 0.22745098039215694, 0.30588235294117627],
+    [0.007843137254901933, 0.776470588235294, 0.007843137254901933],
+    [0.3215686274509806, 0.22745098039215694, 0.30588235294117627],
+    [0.0235294117647058, 0.776470588235294, -0.007843137254901933]
+  ],
+  "cameraReplacementHistory": {
+    "before": 1,
+    "resets": 2,
+    "reason": "camera",
+    "depthEncoding": "actor-relative view meters / 100",
+    "halfFloat": true
+  },
+  "matchedRouteDeltasMeters": {
+    "idle": 0,
+    "walk": 0,
+    "walkEnd": 0.02281254498385887,
+    "run": 0.02281254498385887,
+    "runEnd": 0.00024001145732367382,
+    "stop": 0.000244800981838818,
+    "turn": 0.000244800981838818,
+    "turnEnd": 0.02311830354960384,
+    "beforeRest": 0.046646707214320855,
+    "rest": 0.04664418731794037,
+    "sit": 0.04664447313041645,
+    "lie": 0.04664447313041645,
+    "wide": 0.04664447313041645,
+    "return": 0.04664447313041645,
+    "end": 0.04664447313041645
+  },
+  "maximumMatchedRouteDeltaMeters": 0.046646707214320855,
+  "captures": [
+    {
+      "name": "legacy-ascii",
+      "video": {
+        "frames": 4831,
+        "duration": 81.139968,
+        "averageFps": 59.52747753854497,
+        "p50": 16.99999999999946,
+        "p95": 18.000000000000682,
+        "p99": 19.000000000001904,
+        "maxGap": 81.00000000000307,
+        "gapsOver25": 38,
+        "gapsOver50": 1
+      },
+      "audio": {
+        "channels": 2,
+        "sampleRate": 48000,
+        "rms": 0.013309429094530287,
+        "peak": 0.23114013671875,
+        "peakDb": -12.72249268349821,
+        "clippedFrames": 0,
+        "dc": [-1.4974301304964546e-5, -1.755691844330737e-5],
+        "stereoCorrelation": 0.5673087833115434,
+        "windows": {
+          "idle": 0.0034946776890480095,
+          "travel": 0.019981552683728407,
+          "rest": 0.004143312419429541
+        }
+      },
+      "footfalls": 31,
+      "foley": {
+        "loaded": 14,
+        "failures": [],
+        "steps": 31,
+        "brushes": 46,
+        "lastGrass": [
+          "footstep_grass_000.ogg",
+          "footstep_grass_001.ogg",
+          "footstep_grass_001.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_003.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_001.ogg",
+          "footstep_grass_003.ogg"
+        ],
+        "source": "Kenney Impact Sounds CC0 recorded foley samples"
+      },
+      "errors": []
+    },
+    {
+      "name": "2p5d-ascii",
+      "video": {
+        "frames": 4860,
+        "duration": 81.111429,
+        "averageFps": 59.90556151446783,
+        "p50": 16.999999999995907,
+        "p95": 18.000000000000682,
+        "p99": 18.99999999999835,
+        "maxGap": 36.999999999999034,
+        "gapsOver25": 11,
+        "gapsOver50": 0
+      },
+      "audio": {
+        "channels": 2,
+        "sampleRate": 48000,
+        "rms": 0.013442148471570443,
+        "peak": 0.186492919921875,
+        "peakDb": -14.586753024797828,
+        "clippedFrames": 0,
+        "dc": [-1.6740134952101247e-5, -1.4814524804189908e-5],
+        "stereoCorrelation": 0.9006504225322596,
+        "windows": {
+          "idle": 0.003240000759819855,
+          "travel": 0.018647176114605174,
+          "rest": 0.004244537969368104
+        }
+      },
+      "footfalls": 32,
+      "foley": {
+        "loaded": 14,
+        "failures": [],
+        "steps": 32,
+        "brushes": 46,
+        "lastGrass": [
+          "footstep_grass_000.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_004.ogg"
+        ],
+        "source": "Kenney Impact Sounds CC0 recorded foley samples"
+      },
+      "errors": []
+    },
+    {
+      "name": "2p5d-shaded",
+      "video": {
+        "frames": 4795,
+        "duration": 81.122765,
+        "averageFps": 59.096176129779835,
+        "p50": 16.99999999999946,
+        "p95": 18.000000000000682,
+        "p99": 32.00000000000003,
+        "maxGap": 42.999999999992156,
+        "gapsOver25": 78,
+        "gapsOver50": 0
+      },
+      "audio": {
+        "channels": 2,
+        "sampleRate": 48000,
+        "rms": 0.013353391308844196,
+        "peak": 0.186065673828125,
+        "peakDb": -14.606674798755959,
+        "clippedFrames": 0,
+        "dc": [-1.890936781903931e-5, -1.4741290642351481e-5],
+        "stereoCorrelation": 0.9037441974885365,
+        "windows": {
+          "idle": 0.0031052200709021692,
+          "travel": 0.01864376731314357,
+          "rest": 0.004197389196941341
+        }
+      },
+      "footfalls": 31,
+      "foley": {
+        "loaded": 14,
+        "failures": [],
+        "steps": 31,
+        "brushes": 46,
+        "lastGrass": [
+          "footstep_grass_003.ogg",
+          "footstep_grass_001.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_000.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_003.ogg",
+          "footstep_grass_001.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_004.ogg",
+          "footstep_grass_003.ogg",
+          "footstep_grass_002.ogg",
+          "footstep_grass_004.ogg"
+        ],
+        "source": "Kenney Impact Sounds CC0 recorded foley samples"
+      },
+      "errors": []
+    }
+  ],
+  "previews": [
+    {
+      "name": "legacy",
+      "width": 1152,
+      "height": 720,
+      "duration": 81.15,
+      "bytes": 43269921,
+      "frames": 4830,
+      "averageRate": "28980/487",
+      "audio": "aac",
+      "channels": 2
+    },
+    {
+      "name": "2p5d",
+      "width": 1152,
+      "height": 720,
+      "duration": 81.116667,
+      "bytes": 16868649,
+      "frames": 4859,
+      "averageRate": "291540/4867",
+      "audio": "aac",
+      "channels": 2
+    },
+    {
+      "name": "side-by-side",
+      "width": 1920,
+      "height": 600,
+      "duration": 81.133008,
+      "bytes": 32017803,
+      "frames": 4868,
+      "averageRate": "60/1",
+      "audio": "aac",
+      "channels": 2
+    },
+    {
+      "name": "shaded",
+      "width": 1152,
+      "height": 720,
+      "duration": 31.786,
+      "bytes": 31475137,
+      "frames": 1878,
+      "averageRate": "112680/1907",
+      "audio": "aac",
+      "channels": 2
+    }
+  ],
+  "captureStallInvestigation": {
+    "mode": "legacy",
+    "atSeconds": 52.323,
+    "encodedGapMs": 81,
+    "coincidentRafMaxMs": 66.6,
+    "cleanProbeMaxMs": 16.8,
+    "interpretation": "Only observed with capture enabled; kept in source and export. Recording overhead is a likely contributor, not proven as the sole cause."
+  }
+}

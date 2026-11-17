@@ -33,7 +33,10 @@ const orbit = async (dx, zoom = 0) => {
   await wait(1300);
 };
 try {
-  await page.goto(process.env.TEST_URL || "http://localhost:4173/?diagnostics");
+  await page.goto(
+    process.env.TEST_URL ||
+      "http://localhost:4173/?diagnostics&camera=legacy&posture=neutral",
+  );
   await page.waitForFunction(() => window.__lastBell?.snapshot().drawCalls > 0);
   await wait(1000);
   await page

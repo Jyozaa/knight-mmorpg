@@ -10,6 +10,8 @@ import { tagAsciiSurface, SURFACE_TAG } from "../rendering/SurfaceStyle";
 export const WIND_GLSL =
   SHARED_WIND_GLSL +
   `
+uniform float grassRest,grassIllustration;
+uniform vec2 grassHeading;
 vec3 bendGrass(vec3 p,vec3 world,vec3 actor,vec3 axisX,vec3 axisZ){
  float h=max(0.,p.y),anchor=clamp(h/1.15,0.,1.);
  vec2 fieldPosition=world.xz+axisX.xz*p.x+axisZ.xz*p.z;
@@ -25,6 +27,15 @@ vec3 bendGrass(vec3 p,vec3 world,vec3 actor,vec3 axisX,vec3 axisZ){
  p.y-=field.x*bend*h*.24;
  float proximity=1.-smoothstep(.2,.65,distance(world.xz,actor.xz));
  force+=vec3(world.x-actor.x,0.,world.z-actor.z)*proximity*anchor*.28;
+ if(grassIllustration>.5){
+   vec2 relative=world.xz-actor.xz;
+   vec2 closest=grassHeading*clamp(dot(relative,grassHeading),-1.2*grassRest,.65*grassRest);
+   vec2 outward=relative-closest;
+   float contact=1.-smoothstep(.23,.67+.93*grassRest,length(outward));
+   vec2 flattened=normalize(outward+vec2(.001))*(.13+.42*grassRest)*contact*bend;
+   force+=vec3(flattened.x,0.,flattened.y);
+   p.y*=.78*(1.-(.42+.40*grassRest)*contact*anchor);
+ }
  p.x+=dot(force,axisX);p.z+=dot(force,axisZ);return p;
 }
 `;
@@ -80,10 +91,21 @@ export function grassTemplate(
 }
 const TILE = 16,
   EXTENT = 13;
+export interface GrassComposition {
+  direction: T.Vector2;
+  travel: number;
+  rest: number;
+  heading: number;
+}
 export class Grass {
   readonly group = new T.Group();
   readonly batches: T.InstancedMesh[] = [];
   private actor = { value: new T.Vector3() };
+  private compositionUniforms = {
+    grassRest: { value: 0 },
+    grassIllustration: { value: 0 },
+    grassHeading: { value: new T.Vector2(0, 1) },
+  };
   visibleInstances = 0;
   constructor(
     scene: T.Scene,
@@ -98,6 +120,7 @@ export class Grass {
     });
     material.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, this.wind.uniforms);
+      Object.assign(shader.uniforms, this.compositionUniforms);
       shader.uniforms.actor = this.actor;
       shader.vertexShader =
         "uniform vec3 actor;\nvarying float bladeHeight;\n" +
@@ -166,13 +189,41 @@ export class Grass {
           this.group.add(mesh);
         }
   }
-  update(_time: number, actor: T.Vector3, camera: T.Vector3) {
+  update(
+    _time: number,
+    actor: T.Vector3,
+    camera: T.Vector3,
+    composition?: GrassComposition,
+  ) {
     this.actor.value.copy(actor);
+    this.compositionUniforms.grassIllustration.value = composition ? 1 : 0;
+    this.compositionUniforms.grassRest.value = composition?.rest ?? 0;
+    this.compositionUniforms.grassHeading.value.set(
+      Math.sin(composition?.heading ?? 0),
+      Math.cos(composition?.heading ?? 0),
+    );
     this.visibleInstances = 0;
     for (const b of this.batches) {
       const c = b.userData.center as T.Vector2,
         d = Math.hypot(c.x - camera.x, c.y - camera.z),
         nearActor = Math.hypot(c.x - actor.x, c.y - actor.z);
+      if (composition) {
+        const depth =
+          (c.x - actor.x) * composition.direction.x +
+          (c.y - actor.z) * composition.direction.y;
+        const factor =
+          depth > 2
+            ? -0.014 * (1 - Math.exp(-(depth - 2) / 8))
+            : 0.04 * (1 - Math.exp(Math.min(0, depth + 3) / 12));
+        const shift = 0.65 * Math.tanh((composition.travel * factor) / 0.65);
+        const sx = composition.direction.y * shift,
+          sz = -composition.direction.x * shift;
+        b.position.set(
+          sx,
+          heightAt(c.x + sx, c.y + sz) - heightAt(c.x, c.y),
+          sz,
+        );
+      } else b.position.set(0, 0, 0);
       // The far layer is never distance-culled. Overlap at transitions prevents bare bands.
       b.visible =
         b.userData.lod === 2 ||

@@ -32,6 +32,15 @@ Original Blender-authored armor replaces the former runtime suit: recessed salle
 
 Imported the supplied PBR knight with documented publication permission, native skeleton/cloth controls and weapon removal. Retained authored comparison and shaded/ASCII review modes. Fixed contact release, contact blending, ankle basis/rest pitch, loop-channel closure, knee-plane conditioning and hero temporal history. Added native boot clearance and restrained rigid/cloth secondary response. Replaced synthetic footsteps with licensed sample layers and wind-driven grass-sample rustle.
 
+## Complete — 0.7 cinematic illustration and posture
+
+- Controlled orthographic side/three-quarter presentation, weak-perspective study, stable terrain follow/look-ahead and bounded framing.
+- Screen-horizontal travel with shallow depth, preserved collision/run/evade and natural reversals.
+- Reusable distributed weary posture with native shoulder/neck retention, continuous gait/rest weights and no transform accumulation.
+- Layered real-geometry grass/scenery contrast, understated parallax, local reclining contact and readable silver/crimson through reveal.
+- Reworked 55-second composition and smooth get-up return; virtual listener and matching bell coordinates.
+- Independent legacy/2.5D, neutral/weary and shaded/ASCII review modes, full matched recordings, native-rate contact checks and frame-pacing percentiles.
+
 ## Further polish within this scene
 
 Dedicated captured start/stop matching and planted 180-degree pivot clips could improve the current transition graph. Refine cloth self-collision and plate contact on extreme poses, custom engraved forms, thin-blade temporal reconstruction, and silhouette readability across GPUs. These are further art/animation refinements before story expansion.

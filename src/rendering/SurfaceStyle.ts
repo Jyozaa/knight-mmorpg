@@ -4,6 +4,7 @@ export const SURFACE_TAG = {
   armor: 0.18,
   cloth: 0.43,
   grass: 0.69,
+  landmark: 0.9,
 } as const;
 export function tagAsciiSurface(
   material: Material,

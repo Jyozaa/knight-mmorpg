@@ -1,8 +1,9 @@
 /** Shared temporal/tonal constants are used by the shader and CPU regression tests. */
 export const BLACK_LEVEL = 0.004;
 export const HISTORY_DEADBAND = 0.012;
-export const HISTORY_DEPTH_TOLERANCE = 0.003;
-export const HERO_HISTORY_DEPTH_TOLERANCE = 0.0012;
+// History depth is actor-relative view depth divided by 100, for stable half-float precision with either projection.
+export const HISTORY_DEPTH_TOLERANCE = 0.0015;
+export const HERO_HISTORY_DEPTH_TOLERANCE = 0.0004;
 export const GLYPH_LEVELS = 8;
 export function mapLuminance(luminance: number) {
   return 1 - Math.exp(-Math.max(0, luminance - BLACK_LEVEL) * 2.4);

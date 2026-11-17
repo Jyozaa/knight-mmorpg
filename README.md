@@ -2,11 +2,11 @@
 
 _A world waiting to be heard._
 
-A playable third-person hillside rendered entirely through real-time GPU ASCII. Version 0.6 adds the supplied textured knight, repairs locomotion contact/reconstruction defects, and replaces synthetic footsteps with sampled foley. Dense grass, shared wind, black sky, controls and the 55-second resting cinematic remain.
+An interactive 2.5D ASCII fantasy illustration, built from real geometry, captured human motion and shared wind. Version 0.7 adds a controlled side/three-quarter camera, anatomical weary posture, layered meadow contrast and a recomposed 55-second resting scene.
 
-[Gameplay with live audio](docs/previews/v06-gameplay.mp4) · [Shaded gait review](docs/previews/v06-gait-shaded.mp4) · [Validation and comparisons](docs/VALIDATION.md)
+[Matched A/B review](docs/previews/v07-side-by-side.mp4) · [New presentation](docs/previews/v07-2p5d.mp4) · [Legacy comparison](docs/previews/v07-legacy.mp4) · [Shaded motion](docs/previews/v07-shaded.mp4) · [Validation](docs/VALIDATION.md)
 
-![Supplied knight in the live ASCII scene](docs/screenshots/v06/imported-ascii-front.webp)
+![Weary knight in the live 2.5D ASCII scene](docs/screenshots/v07/idle.webp)
 
 ## Run
 
@@ -17,13 +17,14 @@ npm install
 npm run dev
 ```
 
-Choose **Begin Journey** to unlock sound. Walk toward the waystone about ten metres ahead and press **E** when the rest prompt appears. The knight sits and reclines over ten seconds while the camera continues its 55-second pullback. **Return to the fields** reverses the pose before movement unlocks.
+Choose **Begin Journey** to unlock sound. Press D to travel right toward the waystone about ten metres ahead and press **E** when the rest prompt appears. The knight sits and reclines over ten seconds while the camera continues its 55-second pullback. **Return to the fields** reverses the pose before movement unlocks.
 
 | Control            | Action                             |
 | ------------------ | ---------------------------------- |
-| WASD               | Camera-relative movement           |
+| A / D              | Travel left / right                |
+| W / S              | Shallow depth movement             |
 | Shift              | Run                                |
-| Mouse / drag       | Captured look / free orbit         |
+| Mouse / drag       | Small framing adjustments          |
 | Wheel              | Zoom                               |
 | Double-click world | Recapture mouse                    |
 | Space              | Evade                              |
@@ -34,6 +35,16 @@ Choose **Begin Journey** to unlock sound. Walk toward the waystone about ten met
 | Backquote          | Diagnostics and optional profiling |
 
 Walk/run speeds are 1.35/3.6 m/s, synchronized to calibrated human gait cycles. Reversals brake and turn before recovering speed. Keyboard/mouse gameplay is supported; menus adapt to smaller screens.
+
+## v0.7
+
+- Orthographic side/three-quarter composition, full-body framing, slope-stable tracking, gentle look-ahead and bounded mouse adjustments. A weak-perspective study remains available through `?projection=weak`.
+- Distributed pelvis, spine, chest, head and shoulder posture. Native clavicles and neck retain the slouch after retargeting. Captured walk/run, planted contacts, controlled reversals and natural rest/get-up blends remain active.
+- Fine foreground grass, clear middle-ground silver/crimson, sparse dark hills and understated real-geometry parallax. Reclining bends nearby grass without clearing or removing it. The distant tower is recomposed for the wider illustration.
+- The 55-second sequence widens orthographic coverage and translates gently; both scale and position ease back on return. A virtual audio listener preserves sensible footstep/wind distance and stereo despite the distant rendering eye.
+- Projection-aware temporal reprojection, actor-relative half-float depth history, viewport invalidation and frame pacing percentiles/outlier counts in diagnostics.
+
+Independent review controls: `?camera=legacy|2p5d`, `?posture=neutral|weary`, `?render=shaded|ascii`. `?compare` exposes links. Defaults are 2.5D/weary; legacy defaults to neutral when posture is omitted. Legacy mode retains free orbit and camera-relative WASD. The matched recordings use the same knight, world, route and display settings, including the complete pullback, at natural speed with actual game audio.
 
 ## v0.6
 
@@ -68,7 +79,7 @@ npm run format:check
 npm test
 npm run build
 npm run preview
-TEST_URL='http://localhost:4173/?diagnostics' npm run test:browser
+npm run test:browser
 ```
 
 Browser validation uses installed Google Chrome and Playwright FFmpeg (`npx playwright install ffmpeg`). It drives real controls and checks errors, wind CPU/GPU parity, actual sound controls, menus, movement, rest, pause, return, resizing and fullscreen. Detailed output stays in ignored `test-results/`.
@@ -76,15 +87,16 @@ Browser validation uses installed Google Chrome and Playwright FFmpeg (`npx play
 The separate review recorder captures the game canvas at requested 60 Hz together with the actual Web Audio master bus:
 
 ```sh
-node tests/record-preview.mjs
-node scripts/compress-preview.mjs
-node tests/record-gait.mjs
-node tests/model-review.mjs
+npm run record:v07
+CAPTURE_MODE=2p5d RENDER=shaded npm run record:v07
+node scripts/compress-v07.mjs
+node tests/presentation-studies.mjs
+node tests/frame-pacing.mjs
 # Numerical native-skeleton checks use the Vite development server on port 5173.
 node tests/animation-stability.mjs
 ```
 
-It retains uninterrupted walking/running sequences. The committed compressed edit contains only real-time segments. No source reference media or raw captures are committed. Diagnostic capture streams require `?diagnostics`; they do not control the simulation.
+It retains uninterrupted walking/running sequences. Both ASCII recordings retain the full route and 55-second pullback. The shaded edit retains consecutive walk/run cycles and key rest/return segments. The side-by-side file shows A on the left, B on the right, with B audio. No source reference media or raw captures are committed. Diagnostic capture streams require `?diagnostics`; they do not control the simulation.
 
 ## Authoring
 

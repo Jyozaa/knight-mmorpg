@@ -13,6 +13,8 @@ import { Input } from "./systems/Input";
 import { InteractionSystem } from "./systems/InteractionSystem";
 import { QuestProgression } from "./systems/QuestProgression";
 import { terrainMaterial } from "./world/terrain";
+import { FramePacing } from "./diagnostics/FramePacing";
+import { smoothstep } from "./config";
 import { UI, type Screen } from "./ui/UI";
 
 import { prepareArmor } from "./character/model/buildArmor";
@@ -22,26 +24,42 @@ async function boot() {
   const review = new URLSearchParams(location.search);
   const appearance =
     review.get("knight") === "authored" ? "authored" : "imported";
+  const cameraMode = review.get("camera") === "legacy" ? "legacy" : "2p5d",
+    illustrated = cameraMode === "2p5d",
+    postureMode =
+      review.get("posture") === "neutral"
+        ? "neutral"
+        : review.get("posture") === "weary"
+          ? "weary"
+          : illustrated
+            ? "weary"
+            : "neutral",
+    projection = review.get("projection") === "weak" ? "weak" : "orthographic";
   await prepareArmor();
   if (appearance === "imported") await prepareImportedAvatar();
   const settings = readSettings(),
-    ui = new UI(settings);
+    ui = new UI(settings, illustrated);
   const wind = new WindSystem();
   const renderer = new AsciiRenderer(
       ui.viewport,
       settings,
       review.get("render") === "shaded",
+      illustrated,
     ),
-    world = new World(wind),
-    knight = new Knight(wind, appearance),
-    player = new CharacterController();
+    world = new World(wind, illustrated),
+    knight = new Knight(wind, appearance, postureMode, illustrated),
+    player = new CharacterController(cameraMode);
   world.scene.add(knight.root);
   if (review.has("compare")) {
     const panel = document.createElement("nav");
-    panel.setAttribute("aria-label", "Character comparison");
+    panel.setAttribute("aria-label", "Presentation comparison");
     panel.style.cssText =
-      "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:100;display:flex;gap:12px;background:#080808e8;padding:10px;font:12px monospace;border:1px solid #555";
+      "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:100;display:flex;flex-wrap:wrap;width:max-content;max-width:95vw;justify-content:center;gap:12px;background:#080808e8;padding:10px;font:12px monospace;border:1px solid #555";
     for (const [label, key, value] of [
+      ["Legacy camera", "camera", "legacy"],
+      ["2.5D camera", "camera", "2p5d"],
+      ["Neutral posture", "posture", "neutral"],
+      ["Weary posture", "posture", "weary"],
       ["Authored v0.5", "knight", "authored"],
       ["Supplied knight", "knight", "imported"],
       ["ASCII", "render", "ascii"],
@@ -60,16 +78,22 @@ async function boot() {
   }
   knight.root.position.copy(player.position);
   knight.root.rotation.y = player.rotation;
-  const camera = new CameraController(player.position, world.obstacles),
-    cinematic = new CinematicSystem(),
-    audio = new AudioManager(settings, wind),
+  const camera = new CameraController(
+      player.position,
+      world.obstacles,
+      cameraMode,
+      projection,
+    ),
+    cinematic = new CinematicSystem(cameraMode),
+    audio = new AudioManager(settings, wind, world.bell),
     input = new Input(renderer.renderer.domElement),
     interactions = new InteractionSystem(),
     quest = new QuestProgression();
   let gettingUp = 0;
   let animationCpuMs = 0,
     cameraCpuMs = 0;
-  let visualYaw = -0.35;
+  const pacing = new FramePacing();
+  let visualYaw = illustrated ? Math.PI : -0.35;
   let screen: Screen = "menu",
     beforePause: Screen = "playing";
   let previous = performance.now(),
@@ -79,6 +103,7 @@ async function boot() {
     frameTimer = 0,
     fps = 60,
     frameMs = 16.7;
+  let pacingActive = false;
   const forward = new T.Vector3();
   const setScreen = (next: Screen) => {
     screen = next;
@@ -110,7 +135,7 @@ async function boot() {
       quest.rest();
       ui.objective(quest.objective);
       setScreen("cinematic");
-      audio.bell();
+      audio.bell(world.bell);
     },
   });
   ui.onBegin = () => {
@@ -168,6 +193,7 @@ async function boot() {
   });
   ui.screen("menu");
   function frame(now: number) {
+    const frameStart = performance.now();
     requestAnimationFrame(frame);
     const raw = (now - previous) / 1000;
     previous = now;
@@ -195,7 +221,12 @@ async function boot() {
           Math.cos(Math.PI - player.rotation),
         );
         player.rotation += turn * (1 - Math.exp(-2 * dt));
-        camera.cinematic(dt, cinematic.position, cinematic.target);
+        camera.cinematic(
+          dt,
+          cinematic.position,
+          cinematic.target,
+          cinematic.viewHeight,
+        );
         ui.cinematicTime(cinematic.time);
       } else
         camera.update(
@@ -204,10 +235,12 @@ async function boot() {
           screen === "menu",
           time,
           player.speed,
+          player.velocity,
         );
       cameraCpuMs = cameraCpuMs * 0.9 + (performance.now() - cameraStart) * 0.1;
       knight.root.position.copy(player.position);
-      const targetYaw = screen === "menu" ? -0.35 : player.rotation;
+      const targetYaw =
+        screen === "menu" ? (illustrated ? Math.PI : -0.35) : player.rotation;
       const yawDelta = Math.atan2(
         Math.sin(targetYaw - visualYaw),
         Math.cos(targetYaw - visualYaw),
@@ -215,8 +248,25 @@ async function boot() {
       visualYaw += yawDelta * (1 - Math.exp(-14 * dt));
       knight.root.rotation.y = visualYaw;
       camera.camera.getWorldDirection(forward);
-      wind.update(dt, player.position, camera.camera.position, forward);
-      world.update(time, player.position, camera.camera.position);
+      wind.update(dt, player.position, camera.listeningPosition, forward);
+      const restTime =
+        screen === "cinematic"
+          ? cinematic.time
+          : gettingUp > 0
+            ? gettingUp
+            : null;
+      world.update(
+        time,
+        player.position,
+        camera.camera.position,
+        camera.composition
+          ? {
+              ...camera.composition,
+              rest: smoothstep(4, 9, restTime ?? 0),
+              heading: visualYaw,
+            }
+          : undefined,
+      );
       const animationStart = performance.now();
       knight.update(
         dt,
@@ -240,7 +290,7 @@ async function boot() {
           player.speed,
           terrainMaterial(player.position.x, player.position.z) === "stone",
           screen === "cinematic" ? cinematic.time : null,
-          camera.camera.position,
+          camera.listeningPosition,
           forward,
           knight.consumeFootfalls(),
         );
@@ -254,6 +304,11 @@ async function boot() {
       knight.root,
     );
     input.endFrame();
+    const active =
+      (screen === "playing" || screen === "cinematic") && !ui.modalOpen;
+    if (active && pacingActive)
+      pacing.observe(raw, performance.now() - frameStart);
+    pacingActive = active;
     frameCount++;
     frameTimer += raw;
     frameMs = frameMs * 0.95 + raw * 1000 * 0.05;
@@ -262,7 +317,7 @@ async function boot() {
       frameCount = 0;
       frameTimer = 0;
       ui.diagnosticsText(
-        `${fps} FPS · ${frameMs.toFixed(1)} ms\n${renderer.drawCalls} scene calls\nASCII ${renderer.columns} × ${renderer.rows}\n${screen} · ${player.speed.toFixed(1)} m/s\nCPU animation ${animationCpuMs.toFixed(2)} · camera ${cameraCpuMs.toFixed(2)} ms\nCPU scene ${renderer.sceneCpuMs.toFixed(2)} · ASCII ${renderer.asciiCpuMs.toFixed(2)} ms\nGrass pass ${renderer.grassCpuMs.toFixed(2)} ms CPU\nGPU scene ${renderer.profiler.milliseconds.scene?.toFixed(2) ?? "n/a"} · ASCII ${renderer.profiler.milliseconds.ascii?.toFixed(2) ?? "n/a"} · grass ${renderer.profiler.milliseconds.grass?.toFixed(2) ?? "n/a"} ms`,
+        `${fps} FPS · ${frameMs.toFixed(1)} ms\n${renderer.drawCalls} scene calls\nASCII ${renderer.columns} × ${renderer.rows}\n${screen} · ${player.speed.toFixed(1)} m/s\nCPU animation ${animationCpuMs.toFixed(2)} · camera ${cameraCpuMs.toFixed(2)} ms\nCPU scene ${renderer.sceneCpuMs.toFixed(2)} · ASCII ${renderer.asciiCpuMs.toFixed(2)} ms\nGrass pass ${renderer.grassCpuMs.toFixed(2)} ms CPU\nFrame p95 ${pacing.diagnostics.p95.toFixed(1)} · p99 ${pacing.diagnostics.p99.toFixed(1)} ms · >33ms ${pacing.diagnostics.over33}\nGPU scene ${renderer.profiler.milliseconds.scene?.toFixed(2) ?? "n/a"} · ASCII ${renderer.profiler.milliseconds.ascii?.toFixed(2) ?? "n/a"} · grass ${renderer.profiler.milliseconds.grass?.toFixed(2) ?? "n/a"} ms`,
       );
     }
   }
@@ -284,6 +339,10 @@ async function boot() {
         },
         snapshot: () => ({
           screen,
+          cameraMode,
+          postureMode,
+          composition: camera.diagnostics,
+          history: renderer.historyDiagnostics,
           position: player.position.toArray(),
           speed: player.speed,
           rotation: player.rotation,
@@ -296,6 +355,7 @@ async function boot() {
             knight.rig.spine.rotation.x + knight.rig.chest.rotation.x,
           animation: knight.diagnostics,
           performance: {
+            pacing: pacing.diagnostics,
             animationCpuMs,
             cameraCpuMs,
             sceneCpuMs: renderer.sceneCpuMs,

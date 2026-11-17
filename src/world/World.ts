@@ -1,21 +1,29 @@
 import * as T from "three";
 import { heightAt, type Obstacle } from "./terrain";
 import { random } from "../config";
-import { Grass } from "./Grass";
+import { Grass, type GrassComposition } from "./Grass";
 import { WindSystem } from "../environment/WindSystem";
 import { populateRocks } from "./rockPlacement";
+import { tagAsciiSurface, SURFACE_TAG } from "../rendering/SurfaceStyle";
 export class World {
   readonly scene = new T.Scene();
   readonly obstacles: Obstacle[] = [];
   readonly rest = new T.Vector3(0, heightAt(0, -3), -3);
+  readonly bell = new T.Vector3(-22, heightAt(-22, -5) + 3.35, -5);
   readonly grass: Grass;
   readonly rocks: T.InstancedMesh;
   readonly rockObstacles: Obstacle[] = [];
   private keyLight: T.DirectionalLight;
   private rimLight: T.DirectionalLight;
   private motes: T.Points;
-  constructor(readonly wind: WindSystem = new WindSystem()) {
+  readonly background = new T.Group();
+  constructor(
+    readonly wind: WindSystem = new WindSystem(),
+    readonly illustrated = false,
+  ) {
     const scene = this.scene;
+    this.background.name = "Real distant silhouettes and bell tower";
+    scene.add(this.background);
     scene.background = new T.Color(0x000000);
     scene.fog = new T.FogExp2(0x000000, 0.034);
     scene.add(new T.HemisphereLight("#ebeee9", "#000000", 0.12));
@@ -88,6 +96,7 @@ export class World {
         new T.MeshStandardMaterial({
           color: i % 2 ? "#171a18" : "#101310",
           flatShading: true,
+          fog: !illustrated,
         }),
       );
       const verts = peak.geometry.attributes.position;
@@ -105,9 +114,9 @@ export class World {
       peak.geometry.computeVertexNormals();
       peak.position.set(Math.cos(a) * r, h * 0.18 - 4, Math.sin(a) * r);
       peak.rotation.y = rng() * 6;
-      scene.add(peak);
+      this.background.add(peak);
     }
-    this.tower(-35, -82);
+    this.tower(this.bell.x, this.bell.z);
     // A small weathered waystone marks the rest point, without a floating game marker.
     const marker = new T.Mesh(new T.BoxGeometry(0.4, 1.1, 0.25), rockMat);
     marker.position.copy(this.rest).add(new T.Vector3(2.4, 0.5, 0));
@@ -142,12 +151,15 @@ export class World {
   private tower(x: number, z: number) {
     const group = new T.Group();
     group.position.set(x, heightAt(x, z), z);
-    this.scene.add(group);
+    this.background.add(group);
+    group.scale.setScalar(0.25);
     const stone = new T.MeshStandardMaterial({
       color: "#636760",
       roughness: 1,
       flatShading: true,
+      fog: !this.illustrated,
     });
+    tagAsciiSurface(stone, SURFACE_TAG.landmark);
     const box = (
       w: number,
       h: number,
@@ -180,7 +192,7 @@ export class World {
     bell.position.y = 13.4;
     group.add(bell);
     box(0.12, 2, 0.12, 0, 14.7, 0);
-    this.obstacles.push({ x, z, radius: 4.1, height: 18 });
+    this.obstacles.push({ x, z, radius: 4.1 * 0.25, height: 18 * 0.25 });
     // Broken walls and fallen stones around the tower.
     for (let i = 0; i < 12; i++) {
       const m = box(
@@ -194,11 +206,25 @@ export class World {
       m.rotation.set(0.2, i, 0.3);
     }
   }
-  update(time: number, actor: T.Vector3, camera: T.Vector3) {
-    this.grass.update(time, actor, camera);
+  update(
+    time: number,
+    actor: T.Vector3,
+    camera: T.Vector3,
+    composition?: GrassComposition,
+  ) {
+    this.grass.update(time, actor, camera, composition);
+    if (composition) {
+      const shift = 0.5 * Math.tanh((composition.travel * 0.04) / 0.5);
+      this.background.position.set(
+        composition.direction.y * shift,
+        0,
+        -composition.direction.x * shift,
+      );
+    } else this.background.position.set(0, 0, 0);
     // Keep the lit hill readable during the long pullback while the valley still falls into black.
-    (this.scene.fog as T.FogExp2).density =
-      0.034 / (1 + camera.distanceTo(actor) * 0.025);
+    (this.scene.fog as T.FogExp2).density = this.illustrated
+      ? 0.52 / Math.max(8, camera.distanceTo(actor))
+      : 0.034 / (1 + camera.distanceTo(actor) * 0.025);
     this.keyLight.position.set(actor.x - 8, actor.y + 8, actor.z + 10);
     this.keyLight.target.position.copy(actor);
     this.rimLight.position.set(actor.x + 7, actor.y + 5, actor.z - 8);

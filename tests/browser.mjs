@@ -35,7 +35,10 @@ const log = (message) => {
   console.log(message);
 };
 try {
-  await page.goto(process.env.TEST_URL || "http://localhost:5173/?diagnostics");
+  await page.goto(
+    process.env.TEST_URL ||
+      "http://localhost:4173/?diagnostics&camera=legacy&posture=neutral",
+  );
   await page.waitForFunction(() => window.__lastBell?.snapshot().drawCalls > 0);
   await wait(1800);
   assert.equal((await snapshot()).screen, "menu");

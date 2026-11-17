@@ -14,7 +14,7 @@ precision highp float;
 uniform sampler2D sceneTex,previous,depthTex;
 uniform vec2 cells,texel;
 uniform mat4 inverseVP,previousVP,inverseProjection,previousView,previousHero,inverseHero;
-uniform float initialized,deltaTime;
+uniform float initialized,deltaTime,heroDepth,previousHeroDepth,illustration,illustrationSpan;
 varying vec2 vUv;
 float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
 float tone(float v){return 1.-exp(-max(0.,v-${BLACK_LEVEL})*2.4);}
@@ -54,13 +54,22 @@ void main(){
  vec3 normal=normalize(cross(vx,vy)+vec3(0.,0.,.000001));
  vec2 gradient=vec2(lum(right)-lum(left),lum(top)-lum(bottom));
  float relativeEdge=length(gradient)/(peak+.02);
+ if(illustration>.5){
+   float relativeDepth=-vp.z-heroDepth;
+   if(style==3.){
+     float foreground=smoothstep(2.,10.,-relativeDepth),background=smoothstep(3.,35.,relativeDepth);
+     value*=mix(mix(.52,.56,foreground),.055,background)*mix(1.,.65,smoothstep(6.,16.,illustrationSpan));
+   }
+   if(style==1.)value=clamp(pow(value,mix(1.,.65,smoothstep(7.,16.,illustrationSpan)))*mix(1.10,1.5,smoothstep(8.,16.,illustrationSpan)),0.,1.);
+   if(style==0.)value*=tag>.85&&tag<.95?.42:mix(.45,.10,smoothstep(10.,100.,relativeDepth));
+ }
  // Surface normal curvature and luminance edges choose an oriented ASCII outline.
  float edge=step(.55,relativeEdge)*step(.12,value);
  float angle=atan(gradient.y,gradient.x)+1.5707963;
  float orientation=mod(floor(angle/.7853982+.5)+4.,4.);
  float detail=dot(abs(normal.xy),vec2(.025));
  value=clamp(value+detail*value,0.,1.);
- float encodedDepth=log2(max(.1,-vp.z)+1.)/10.;
+ float encodedDepth=(-vp.z-heroDepth)/100.;
  vec4 world=inverseVP*vec4(p*2.-1.,depth*2.-1.,1.);world/=world.w;
  bool hero=style==1.||style==2.;
  vec4 oldWorld=hero?previousHero*inverseHero*world:world;
@@ -69,7 +78,7 @@ void main(){
  float previousStyle=floor(floor(old.g*64.+.5)/8.);
  float motion=length((oldUv-p)*cells);
  float valid=initialized*step(0.,oldUv.x)*step(oldUv.x,1.)*step(0.,oldUv.y)*step(oldUv.y,1.);
- float expectedDepth=log2(max(.1,-(previousView*oldWorld).z)+1.)/10.;
+ float expectedDepth=(-(previousView*oldWorld).z-previousHeroDepth)/100.;
  valid*=step(abs(expectedDepth-old.b),hero?${HERO_HISTORY_DEPTH_TOLERANCE}:${HISTORY_DEPTH_TOLERANCE})*step(motion,7.)*step(abs(value-old.r),.22);
  if(style==1.)valid*=step(abs(clamp((tag-.14)/.10,0.,.999)-old.a),.20);
  valid*=1.-step(.5,abs(previousStyle-style));
@@ -148,6 +157,10 @@ export class AsciiRenderer {
   private previousView = new T.Matrix4();
   private previousHero = new T.Matrix4();
   private inverseHero = new T.Matrix4();
+  private heroPoint = new T.Vector3();
+  private lastCamera = "";
+  private historyResets = 0;
+  private historyReason = "initial";
   columns = 0;
   rows = 0;
   drawCalls = 0;
@@ -158,6 +171,7 @@ export class AsciiRenderer {
     container: HTMLElement,
     private settings: Settings,
     readonly shaded = false,
+    readonly illustrated = false,
   ) {
     this.renderer = new T.WebGLRenderer({
       antialias: false,
@@ -202,6 +216,10 @@ export class AsciiRenderer {
         inverseHero: { value: this.inverseHero },
         initialized: { value: 0 },
         deltaTime: { value: 1 / 60 },
+        heroDepth: { value: 0 },
+        previousHeroDepth: { value: 0 },
+        illustration: { value: illustrated ? 1 : 0 },
+        illustrationSpan: { value: 4.65 },
       },
       depthTest: false,
       depthWrite: false,
@@ -250,7 +268,7 @@ void main(){gl_FragColor=vec4(texture2D(sceneTex,vUv).rgb,1.);
       1 / this.target.width,
       1 / this.target.height,
     );
-    this.updateMaterial.uniforms.initialized.value = 0;
+    this.invalidateHistory("viewport");
     this.glyphMaterial.uniforms.cells.value.set(this.columns, this.rows);
   }
   render(
@@ -272,10 +290,24 @@ void main(){gl_FragColor=vec4(texture2D(sceneTex,vUv).rgb,1.);
       return;
     }
     camera.updateMatrixWorld();
+    if (this.lastCamera && this.lastCamera !== camera.uuid)
+      this.invalidateHistory("camera");
+    this.lastCamera = camera.uuid;
     if (hero) {
       hero.updateWorldMatrix(true, false);
       this.inverseHero.copy(hero.matrixWorld).invert();
+      this.updateMaterial.uniforms.heroDepth.value = -hero
+        .getWorldPosition(this.heroPoint)
+        .applyMatrix4(camera.matrixWorldInverse).z;
     }
+    this.updateMaterial.uniforms.illustrationSpan.value =
+      camera instanceof T.OrthographicCamera
+        ? camera.top - camera.bottom
+        : camera instanceof T.PerspectiveCamera
+          ? 2 *
+            Math.tan(T.MathUtils.degToRad(camera.fov) / 2) *
+            this.updateMaterial.uniforms.heroDepth.value
+          : 4.65;
     this.vp.multiplyMatrices(
       camera.projectionMatrix,
       camera.matrixWorldInverse,
@@ -310,6 +342,8 @@ void main(){gl_FragColor=vec4(texture2D(sceneTex,vUv).rgb,1.);
     this.updateMaterial.uniforms.initialized.value = 1;
     this.previousVP.copy(this.vp);
     this.previousView.copy(camera.matrixWorldInverse);
+    this.updateMaterial.uniforms.previousHeroDepth.value =
+      this.updateMaterial.uniforms.heroDepth.value;
     if (hero) this.previousHero.copy(hero.matrixWorld);
     // Isolated diagnostic grass pass is opt-in and runs only every 120 frames.
     if (grass && this.profiler.enabled && ++this.profileFrame % 120 === 0) {
@@ -333,4 +367,17 @@ void main(){gl_FragColor=vec4(texture2D(sceneTex,vUv).rgb,1.);
     }
   }
   private profileFrame = 0;
+  invalidateHistory(reason: string) {
+    this.updateMaterial.uniforms.initialized.value = 0;
+    this.historyResets++;
+    this.historyReason = reason;
+  }
+  get historyDiagnostics() {
+    return {
+      resets: this.historyResets,
+      reason: this.historyReason,
+      depthEncoding: "actor-relative view meters / 100",
+      halfFloat: true,
+    };
+  }
 }

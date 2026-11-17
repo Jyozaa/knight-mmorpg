@@ -7,6 +7,7 @@ import { WindSystem } from "../../environment/WindSystem";
 import { heightAt } from "../../world/terrain";
 import { solveKnee } from "../animation/kinematics";
 import type { Rig } from "./buildArmor";
+import type { PostureLayer } from "../animation/PostureLayer";
 let asset: GLTF | undefined;
 export async function prepareImportedAvatar() {
   asset = await new AssetLoader().loadGLTF(
@@ -80,10 +81,14 @@ export class ImportedAvatar {
   private handSamples: T.Vector3[][] = [[], []];
   private footGoals = [new T.Vector3(), new T.Vector3()];
   private initialized = false;
+  private clavicles: { bone: T.Bone; bind: T.Quaternion }[];
+  private neck: T.Bone;
+  private neckPosition: T.Vector3;
   constructor(
     private root: T.Group,
     private driver: Rig,
     private wind: WindSystem,
+    illustrated = false,
   ) {
     if (!asset)
       throw new Error(
@@ -117,6 +122,11 @@ export class ImportedAvatar {
         };
         m.customProgramCacheKey = () => "supplied-knight-bind-family-v06";
         const cloth = m.name.includes("cloth");
+        if (illustrated && !cloth) {
+          m.emissive.setRGB(1, 1, 1);
+          m.emissiveMap = m.map;
+          m.emissiveIntensity = 0.2;
+        }
         tagAsciiSurface(
           m,
           cloth ? SURFACE_TAG.cloth : SURFACE_TAG.armor,
@@ -169,6 +179,12 @@ export class ImportedAvatar {
       }
       this.mappings.push(m);
     };
+    this.clavicles = [get("shoulder.R"), get("shoulder.L")].map((bone) => ({
+      bone,
+      bind: bone.quaternion.clone(),
+    }));
+    this.neck = get("head");
+    this.neckPosition = this.neck.position.clone();
     map("spine", driver.hips);
     map("stomach", driver.spine);
     map("chest", driver.chest);
@@ -328,6 +344,7 @@ export class ImportedAvatar {
     speed: number,
     targets: readonly { target: T.Vector3 }[],
     seated = 0,
+    posture?: PostureLayer,
   ) {
     this.root.getWorldQuaternion(this.rootQ);
     this.driver.hips.getWorldPosition(this.to);
@@ -336,6 +353,8 @@ export class ImportedAvatar {
     this.targetRig.hips.parent!.worldToLocal(this.to);
     this.targetRig.hips.position.copy(this.to);
     this.root.updateMatrixWorld(true);
+    this.clavicles.forEach((c) => c.bone.quaternion.copy(c.bind));
+    this.neck.position.copy(this.neckPosition);
     for (const m of this.mappings) {
       if (m.local) {
         m.bone.quaternion.copy(m.rest).multiply(m.driver.quaternion);
@@ -353,6 +372,12 @@ export class ImportedAvatar {
       m.bone.parent!.getWorldQuaternion(this.parentQ);
       m.bone.quaternion.copy(this.parentQ.invert()).multiply(this.q);
       m.bone.updateWorldMatrix(false, true);
+      if (m.driver === this.driver.chest && posture) {
+        this.clavicles.forEach((c, i) =>
+          posture.nativeShoulder(c.bone, c.bind, i, this.rootQ),
+        );
+        posture.nativeNeck(this.neck, this.neckPosition, this.rootQ);
+      }
     }
     let requiredLowering = 0;
     for (let i = 0; i < 2; i++) {
@@ -570,7 +595,7 @@ export class ImportedAvatar {
         for (const sample of c.supports) {
           this.to.copy(sample).applyQuaternion(this.q).add(this.anchor);
           const penetration =
-            heightAt(this.to.x, this.to.z) + 0.004 - this.to.y;
+            heightAt(this.to.x, this.to.z) + 0.009 - this.to.y;
           if (penetration > lift) {
             lift = penetration;
             this.pole.copy(this.to);
@@ -612,6 +637,8 @@ export class ImportedAvatar {
       ].map((b) =>
         b.getWorldPosition(new T.Vector3()).sub(this.root.position).toArray(),
       ),
+      shoulders: this.clavicles.map((c) => c.bone.quaternion.angleTo(c.bind)),
+      neckOffset: this.neck.position.distanceTo(this.neckPosition),
       weapons: 0,
       textures: this.meshes.every((m) =>
         (Array.isArray(m.material) ? m.material : [m.material]).every(
