@@ -224,7 +224,7 @@ test("armor clears the ground during idle and forward traversal", () => {
   reset();
   let minimum = Infinity;
   for (let frame = 0; frame < 120; frame++) {
-    const speed = frame < 30 ? 0 : 1.65;
+    const speed = frame < 30 ? 0 : 1.35;
     knight.root.position.z -= speed / 60;
     knight.root.position.y = heightAt(0, knight.root.position.z);
     knight.update(1 / 60, frame / 60, speed, null, 0);
@@ -320,10 +320,10 @@ test("authored locomotion blends through acceleration, a run and a stop without 
   for (let i = 0; i < 600; i++) {
     const speed =
       i < 120
-        ? 1.65 * (1 - Math.exp(-i / 20))
+        ? 1.35 * (1 - Math.exp(-i / 20))
         : i < 360
-          ? 4.4
-          : 4.4 * Math.exp(-(i - 360) / 15);
+          ? 3.6
+          : 3.6 * Math.exp(-(i - 360) / 15);
     actor.root.position.z -= speed / 60;
     actor.root.position.y = heightAt(0, actor.root.position.z);
     actor.update(1 / 60, i / 60, speed, null, 0, i > 200 && i < 260 ? 0.7 : 0);

@@ -17,6 +17,7 @@ export class LocomotionClips {
   readonly rotations = Array.from({ length: 18 }, () => new T.Quaternion());
   readonly feet = [new T.Vector3(), new T.Vector3()];
   readonly contacts = [true, true];
+  readonly contactWeights = [1, 1];
   readonly hipOffset = new T.Vector3();
   hipHeight = 1.01;
   readonly walkDistance = data.walk.distance;
@@ -107,9 +108,15 @@ export class LocomotionClips {
             run,
           ),
         );
-      const c = (f: typeof w) =>
-        f.t < 0.5 ? f.a.contacts?.[i] : f.b.contacts?.[i];
-      this.contacts[i] = run > 0.5 ? !!c(r) : !!c(w);
+      const c = (clip: Clip) => {
+        let weight = 0;
+        for (const offset of [-0.025, -0.0125, 0, 0.0125, 0.025]) {
+          const f = this.frame(clip, phase + offset);
+          weight += scalar(f, (sample) => (sample.contacts?.[i] ? 1 : 0));
+        }
+        return weight / 5;
+      };
+      this.contactWeights[i] = T.MathUtils.lerp(c(data.walk), c(data.run), run);
       if (stop >= 0) {
         const amount =
           T.MathUtils.smoothstep(stop, 0, 0.15) *
@@ -123,8 +130,13 @@ export class LocomotionClips {
               amount,
             ),
           );
-        this.contacts[i] = this.feet[i].y < 0.14;
+        this.contactWeights[i] = T.MathUtils.lerp(
+          this.contactWeights[i],
+          1 - T.MathUtils.smoothstep(this.feet[i].y, 0.105, 0.16),
+          amount,
+        );
       }
+      this.contacts[i] = this.contactWeights[i] > 0.5;
     }
     // Idle breathing is small and independent of gait generation.
     this.hipHeight += Math.sin(time * 1.65) * 0.002 * (1 - stride);

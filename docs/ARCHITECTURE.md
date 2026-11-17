@@ -1,6 +1,28 @@
-# Architecture — v0.5
+# Architecture — v0.6
 
 The Vite/TypeScript/Three.js/Web Audio game retains its menu/playing/paused/cinematic states, input system, gameplay interaction and 55-second hilltop sequence.
+
+## Supplied character and comparison
+
+The default knight loads `public/models/imported-knight/knight.glb` through GLTFLoader. `scripts/import-knight.py` preserves the supplied skeleton/weights, connects five PBR source maps, removes separate weapons and whole embedded scabbard components, and adds a rigid shoulder hinge/bevel. Editable Blender source includes packed textures. The original v0.5 mesh remains selectable through `?compare` or `?knight=authored`.
+
+`KnightAnimator` continues to drive the canonical 18-joint rig. Its original skin is hidden for the supplied appearance. `ImportedAvatar` maps anatomical world directions onto native bind axes, preserves local wrist articulation and solves native leg reach against shared targets. Pelvis/ankle calibration accounts for shorter legs and the lower boot socket. Native boot samples constrain toe/heel clearance under captured foot pitch. Both assets load locally; the retained original asset supplies canonical rig metadata and the comparison mesh.
+
+Fourteen supplied cape/skirt/mail bones use fixed 120 Hz weighted hinges with shared wind, movement inertia, gravity, a restrained angular envelope and body/leg/terrain proxies. The added shoulder hinge and existing belt bone use small damped rigid rotations. The original scarf solver remains attached to the canonical neck/shoulder frame and continues throughout cinematics. Skin bones rotate rigid metal groups; the whole armor suit is not given cloth deformation.
+
+## v0.6 motion and reconstruction repairs
+
+The diagnosis found independent problems: binary anchor release, walk/run contact switching, unstable toe-derived ankle orientation, incomplete loop-channel closure, near-straight knee-plane ambiguity and overly permissive ASCII depth history.
+
+Contact confidence interpolates across neighboring capture samples and walk/run blends. Hysteresis prevents chatter. Planting eases into a fixed anchor over 65 ms; release carries the previous correction and removes it over 140 ms with zero-slope endpoints. The moving ankle path remains captured human motion. Pelvis reach evaluates both legs continuously; projected knee confidence resolves near-straight ambiguity. Exact spring integration removes render-step dependence from impact/wrist response. Idle settling also retains transition continuity.
+
+The capture conversion uses ankle-to-ball direction instead of unreliable toe extensions and subtracts the native foot segment's rest pitch. It closes ankle/pelvis channels and quaternion seams, then calibrates full-cycle root travel. Raw CMU data remains outside Git.
+
+ASCII history is half-float. Reprojection compensates hero root motion and compares expected previous-view depth, with stricter hero rejection. Armor families use bind coordinates; moving hero edge classification no longer freezes against stale background history. Shaded review bypasses ASCII without changing the character, controller or world. Its opaque tone-mapped display pass keeps semantic alpha inside the HDR target, preventing canvas capture from incorrectly unpremultiplying surface tags.
+
+## v0.6 sampled foley
+
+`GrassFoley` decodes fourteen bundled CC0 OGG files after user audio unlock. Grass, soft impacts, dry friction and quiet armor layers use varied samples, rates, gains and stereo positions. The animator's grounded contact events trigger steps; movement distance triggers low-level vegetation brushing. Grass sample tails crossfade into a loop for the existing WindSystem-controlled rustle bus. Ambient wind and foot movement retain separate buses. Missing sample files remain visible in diagnostics; no synthetic footstep substitute is presented as production foley.
 
 ## Authored character
 

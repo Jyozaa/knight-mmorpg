@@ -14,3 +14,4 @@ playwright-report/
 
 frames/
 tmp/
+*.blend1

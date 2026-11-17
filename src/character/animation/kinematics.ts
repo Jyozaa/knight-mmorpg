@@ -17,7 +17,7 @@ export function solveKnee(
   axis.subVectors(target, origin);
   const distance = Math.max(
     0.0001,
-    Math.min(upper + lower - 0.00001, axis.length()),
+    Math.min(upper + lower - 0.004, axis.length()),
   );
   axis.normalize();
   const along =
@@ -39,6 +39,26 @@ export function aimBone(bone: T.Bone, from: T.Vector3, to: T.Vector3) {
   bone.updateMatrixWorld(true);
 }
 export const wrapPhase = (phase: number) => ((phase % 1) + 1) % 1;
+/** Exact underdamped spring step; response does not depend on render-frame subdivision. */
+export function springStep(
+  position: number,
+  velocity: number,
+  stiffness: number,
+  damping: number,
+  dt: number,
+): [number, number] {
+  const half = damping * 0.5,
+    frequency = Math.sqrt(stiffness - half * half),
+    decay = Math.exp(-half * dt),
+    c = Math.cos(frequency * dt),
+    s = Math.sin(frequency * dt);
+  return [
+    decay * (position * c + ((velocity + half * position) / frequency) * s),
+    decay *
+      (velocity * c -
+        ((half * velocity + stiffness * position) / frequency) * s),
+  ];
+}
 export function swingProgress(phase: number, stance: number) {
   return Math.max(0, Math.min(1, (phase - stance) / (1 - stance)));
 }

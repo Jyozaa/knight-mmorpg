@@ -1,7 +1,8 @@
 /** Shared temporal/tonal constants are used by the shader and CPU regression tests. */
 export const BLACK_LEVEL = 0.004;
 export const HISTORY_DEADBAND = 0.012;
-export const HISTORY_DEPTH_TOLERANCE = 0.035;
+export const HISTORY_DEPTH_TOLERANCE = 0.003;
+export const HERO_HISTORY_DEPTH_TOLERANCE = 0.0012;
 export const GLYPH_LEVELS = 8;
 export function mapLuminance(luminance: number) {
   return 1 - Math.exp(-Math.max(0, luminance - BLACK_LEVEL) * 2.4);

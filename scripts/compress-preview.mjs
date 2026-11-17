@@ -1,6 +1,7 @@
 import { readFileSync, mkdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-const m = JSON.parse(readFileSync("test-results/v05/marks.json", "utf8"));
+const folder = process.env.CAPTURE_FOLDER || "test-results/v06";
+const m = JSON.parse(readFileSync(`${folder}/marks.json`, "utf8"));
 const segments = [
   [m.standing, 3],
   [m.walk, m.walkEnd - m.walk],
@@ -25,7 +26,7 @@ filters.push(
 );
 filters.push("[v]scale=1152:720:flags=lanczos[out]");
 mkdirSync("docs/previews", { recursive: true });
-const output = "docs/previews/v05-gameplay.mp4";
+const output = process.env.PREVIEW_OUTPUT || "docs/previews/v06-gameplay.mp4";
 const r = spawnSync(
   "ffmpeg",
   [
@@ -34,7 +35,7 @@ const r = spawnSync(
     "-loglevel",
     "error",
     "-i",
-    "test-results/v05/raw.webm",
+    `${folder}/raw.webm`,
     "-filter_complex",
     filters.join(";"),
     "-map",
@@ -47,6 +48,8 @@ const r = spawnSync(
     "32",
     "-preset",
     "slow",
+    "-threads",
+    "2",
     "-pix_fmt",
     "yuv420p",
     "-fps_mode",

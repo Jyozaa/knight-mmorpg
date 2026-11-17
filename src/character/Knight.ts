@@ -5,6 +5,7 @@ import { Cape } from "./model/Cape";
 import { KnightAnimator } from "./animation/KnightAnimator";
 import { WindSystem } from "../environment/WindSystem";
 import { smoothstep } from "../config";
+import { ImportedAvatar } from "./model/ImportedAvatar";
 export class Knight {
   readonly root = new T.Group();
   readonly rig;
@@ -12,15 +13,22 @@ export class Knight {
   readonly animator;
   readonly hips: T.Bone;
   readonly cape: Cape;
-  readonly sword: SheathedSword;
-  constructor(readonly wind: WindSystem = new WindSystem()) {
+  readonly sword?: SheathedSword;
+  readonly imported?: ImportedAvatar;
+  constructor(
+    readonly wind: WindSystem = new WindSystem(),
+    readonly appearance: "authored" | "imported" = "authored",
+  ) {
     this.root.name = "Nameless knight — Gothic harness";
     const model = buildArmor(this.root, wind);
     this.rig = model.rig;
     this.mesh = model.mesh;
     this.hips = this.rig.hips;
     this.cape = new Cape(this.rig, wind);
-    this.sword = new SheathedSword(this.rig, model.materials);
+    if (appearance === "imported") {
+      this.mesh.visible = false;
+      this.imported = new ImportedAvatar(this.root, this.rig, wind);
+    } else this.sword = new SheathedSword(this.rig, model.materials);
     this.animator = new KnightAnimator(this.root, this.rig);
   }
   update(
@@ -32,7 +40,13 @@ export class Knight {
     turnRate = 0,
   ) {
     this.animator.update(dt, time, speed, restTime, dodge, turnRate);
-    this.sword.update(time, speed, smoothstep(0.6, 3.5, restTime ?? 0));
+    this.imported?.update(
+      dt,
+      speed,
+      this.animator.feet,
+      smoothstep(0.6, 3.5, restTime ?? 0),
+    );
+    this.sword?.update(time, speed, smoothstep(0.6, 3.5, restTime ?? 0));
     this.root.updateMatrixWorld(true);
     this.cape.update(time, speed, smoothstep(4, 9, restTime ?? 0));
   }
@@ -43,11 +57,16 @@ export class Knight {
     return {
       ...this.animator.diagnostics,
       scarf: this.cape.diagnostics,
-      sword: { drawn: this.sword.drawn, mount: this.sword.mount.parent?.name },
+      sword: {
+        drawn: this.sword?.drawn ?? false,
+        mount: this.sword?.mount.parent?.name ?? null,
+      },
+      appearance: this.imported?.diagnostics ?? { kind: "authored" },
       triangles:
+        this.imported?.diagnostics.triangles ??
         (this.mesh.geometry.index?.count ??
           this.mesh.geometry.attributes.position.count) / 3,
-      joints: this.mesh.skeleton.bones.length,
+      joints: this.imported?.bones.length ?? this.mesh.skeleton.bones.length,
     };
   }
 }

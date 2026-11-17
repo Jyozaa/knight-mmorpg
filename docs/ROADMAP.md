@@ -28,6 +28,10 @@ Retargeted CC0 authored idle/walk/run upper-body curves blended with terrain IK,
 
 Original Blender-authored armor replaces the former runtime suit: recessed sallet, overlapping lames, shaped torso/limbs, finger/boot articulation and tattered folded wool. The rigged GLB is the actual runtime asset. Full-body CMU human capture replaces KayKit/procedural moving leg arcs, with calibrated stride, braking/turn layers and supporting IK. Starts crossfade into the full performance under controlled acceleration. The landscape has continuous overlapping grass representations; all trees, lamps, shield geometry and corresponding collisions are removed. Layered scarf wraps and helmet/shoulder/torso proxies refine cloth contact. Review captures include uninterrupted side-view cycles and live recorded audio.
 
+## Completed in v0.6
+
+Imported the supplied PBR knight with documented publication permission, native skeleton/cloth controls and weapon removal. Retained authored comparison and shaded/ASCII review modes. Fixed contact release, contact blending, ankle basis/rest pitch, loop-channel closure, knee-plane conditioning and hero temporal history. Added native boot clearance and restrained rigid/cloth secondary response. Replaced synthetic footsteps with licensed sample layers and wind-driven grass-sample rustle.
+
 ## Further polish within this scene
 
 Dedicated captured start/stop matching and planted 180-degree pivot clips could improve the current transition graph. Refine cloth self-collision and plate contact on extreme poses, custom engraved forms, thin-blade temporal reconstruction, and silhouette readability across GPUs. These are further art/animation refinements before story expansion.

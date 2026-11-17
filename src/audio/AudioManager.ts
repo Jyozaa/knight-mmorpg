@@ -1,3 +1,4 @@
+import { GrassFoley } from "./GrassFoley";
 import { WindSystem } from "../environment/WindSystem";
 import type { Settings } from "../config";
 import type { Vector3 } from "three";
@@ -26,7 +27,8 @@ export class AudioManager {
   private rustle: GainNode | null = null;
   private windPan: StereoPannerNode | null = null;
   private footfallCount = 0;
-  private stepClock = 0;
+  private foley: GrassFoley | null = null;
+  private recordedRustle = false;
   private birdClock = 6;
   private bellClock = 18;
   private musicClock = 2;
@@ -53,6 +55,8 @@ export class AudioManager {
       rustleTarget: this.windSystem.audio.rustleGain,
       gust: this.windSystem.atActor.gust,
       footfallCount: this.footfallCount,
+      foley: this.foley?.diagnostics ?? null,
+      recordedRustle: this.recordedRustle,
     };
   }
   constructor(
@@ -87,6 +91,9 @@ export class AudioManager {
       last = (last + Math.random() * 0.1 - 0.05) / 1.015;
       data[i] = last * 3;
     }
+    this.foley = new GrassFoley(c, this.buses.sfx);
+    await c.resume();
+    await this.foley.load();
     const source = c.createBufferSource();
     source.buffer = this.noise;
     source.loop = true;
@@ -103,7 +110,9 @@ export class AudioManager {
       .connect(this.windPan)
       .connect(this.buses.ambience);
     const rustleSource = c.createBufferSource();
-    rustleSource.buffer = this.noise;
+    const recorded = this.foley.rustleBuffer();
+    this.recordedRustle = !!recorded;
+    rustleSource.buffer = recorded ?? this.noise;
     rustleSource.loop = true;
     this.rustleFilter = c.createBiquadFilter();
     this.rustleFilter.type = "bandpass";
@@ -216,38 +225,15 @@ export class AudioManager {
     }
     setTimeout(() => panner.disconnect(), 8500);
   }
-  private step(stone: boolean) {
-    if (!this.ctx || !this.noise) return;
-    const c = this.ctx,
-      t = c.currentTime,
-      source = c.createBufferSource(),
-      filter = c.createBiquadFilter(),
-      g = c.createGain();
-    source.buffer = this.noise;
-    source.playbackRate.value = stone ? 1.8 : 0.9;
-    filter.type = "lowpass";
-    filter.frequency.value = stone ? 1900 : 700;
-    g.gain.setValueAtTime(stone ? 0.18 : 0.12, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
-    source.connect(filter).connect(g).connect(this.buses.sfx);
-    source.start(t, Math.random() * 2, 0.2);
-    source.onended = () => {
-      source.disconnect();
-      filter.disconnect();
-      g.disconnect();
-    };
-    this.tone(stone ? 100 : 78, 0.12, 0.055, "sfx");
-    this.tone(900 + Math.random() * 500, 0.08, 0.009, "sfx");
-  }
   update(
     dt: number,
     time: number,
     speed: number,
-    stone: boolean,
+    _stone: boolean,
     cinematicTime: number | null,
     cameraPosition: Vector3,
     forward: Vector3,
-    footfalls = -1,
+    footfalls = 0,
   ) {
     if (!this.ctx || this.paused) return;
     const c = this.ctx,
@@ -281,20 +267,15 @@ export class AudioManager {
     );
     if (footfalls >= 0) {
       if (footfalls & 1) {
-        this.step(stone);
+        this.foley?.step(speed, 0);
         this.footfallCount++;
       }
       if (footfalls & 2) {
-        this.step(stone);
+        this.foley?.step(speed, 1);
         this.footfallCount++;
       }
-    } else if (speed > 0.45) {
-      this.stepClock += dt * speed;
-      if (this.stepClock > 0.65) {
-        this.stepClock = 0;
-        this.step(stone);
-      }
-    } else this.stepClock = 0;
+    }
+    this.foley?.update(dt, speed);
     this.birdClock -= dt;
     if (this.birdClock < 0) {
       this.birdClock = 8 + Math.random() * 12;

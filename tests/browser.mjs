@@ -118,7 +118,17 @@ try {
   result.image.brightArmorPixels = whiteArmor;
   assert.ok(red > 220, `red scarf pixels ${red}`);
   assert.equal(start.animation.sword.drawn, false);
-  assert.equal(start.animation.sword.mount, "pelvis");
+  const supplied = start.animation.appearance.kind === "supplied";
+  assert.equal(start.animation.sword.mount, supplied ? null : "pelvis");
+  if (supplied) {
+    assert.equal(start.animation.appearance.textures, true);
+    assert.equal(start.animation.appearance.weapons, 0);
+    assert.equal(start.animation.appearance.clothBones, 14);
+    assert.equal(start.animation.appearance.rigidArmor, 2);
+  }
+  assert.equal(start.audio.foley.loaded, 14);
+  assert.deepEqual(start.audio.foley.failures, []);
+  assert.equal(start.audio.recordedRustle, true);
   assert.equal(start.animation.scarf.tips.length, 3);
   assert.equal(start.animation.scarf.garments.tips.length, 4);
   assert.ok(start.audio.wind < 0.08);
@@ -132,6 +142,7 @@ try {
   );
   assert.equal(start.environment.grass.tiles, 729);
   assert.match(start.animation.source, /CMU full-body/);
+  console.log("Image guard", result.image);
   assert.ok(whiteArmor > 2500);
   await wait(180);
   const later = PNG.sync.read(await page.screenshot());
@@ -171,6 +182,13 @@ try {
   await wait(3500);
   await page.screenshot({ path: "test-results/walking.png" });
   const walk = await snapshot();
+  if (supplied) {
+    result.walkSurface = await page.evaluate(() =>
+      window.__lastBell.inspectCharacter(),
+    );
+    console.log("Walking surface", result.walkSurface);
+    assert.ok(result.walkSurface.minimumTerrainClearance > -0.035);
+  }
   assert.ok(walk.position[2] < start.position[2] - 3);
   assert.ok(walk.speed > 1.25);
   assert.ok(walk.animation.fatigueLean > 0.025);
@@ -187,6 +205,9 @@ try {
   assert.ok((await snapshot()).speed < 0.2);
   assert.equal((await snapshot()).restAvailable, true);
   assert.ok((await snapshot()).audio.footfallCount >= 6);
+  const foley = (await snapshot()).audio.foley;
+  assert.ok(new Set(foley.lastGrass).size >= 3);
+  assert.ok(foley.brushes > 2);
   await page.screenshot({ path: "test-results/hilltop.png" });
   log(
     "PASS menu, settings, credits, audio unlock, pointer lock, walking, running, deceleration, rest proximity",
@@ -209,6 +230,13 @@ try {
   assert.ok(lying.hipsY < 0.4);
   await page.screenshot({ path: "test-results/resting.png" });
   result.close = lying;
+  if (supplied) {
+    result.restSurface = await page.evaluate(() =>
+      window.__lastBell.inspectCharacter(),
+    );
+    console.log("Resting surface", result.restSurface);
+    assert.ok(result.restSurface.minimumTerrainClearance > -0.035);
+  }
   log(
     "PASS rest, sitting, lying, cinematic camera, pause freezes timeline, resume",
   );

@@ -1,4 +1,16 @@
-# Assets and provenance — v0.5
+# Assets and provenance — v0.6
+
+## Supplied character
+
+The owner supplied `knight/source/knight_combat.fbx` and the texture directory. They clarified that their friend created it, then explicitly confirmed permission to publish the model, textures and modified versions in this public repository on 17 November 2026. No CC0 dedication or general third-party license is inferred. See [permission record](../public/licenses/FRIEND-KNIGHT.md).
+
+The source body has 1,701 triangles plus a separate shoulder mesh and weapons. Conversion removes sword, shield, dagger and 74 connected scabbard/hilt vertices. The runtime export has 1,682 triangles after a small shoulder bevel and 45 bones. Fourteen bones control supplied cloth; two rigid bones provide selected armor response. No animation clips were supplied.
+
+`public/models/imported-knight/knight.glb` embeds base color, normal, metallic/roughness and AO textures. The five original PNG maps remain in `knight/textures/`; glTF packs metallic and roughness channels together. Base color uses sRGB; normal/roughness/metallic/AO use linear data. Runtime keeps a modest diffuse share for readability without an environment reflection map. `assets/imported-knight/knight.blend` retains editable geometry and packed textures. The conversion source is `scripts/import-knight.py`.
+
+## Sampled audio
+
+Fourteen OGG assets from Kenney's Impact Sounds 1.0 replace the synthesized footsteps. The creator's page identifies the pack as CC0. The creator's direct archive endpoint returned HTTP 403; named source files came from the documented public mirror. Sources, legal code, exact file hashes, layer uses and recording-method uncertainty are in [grass audio provenance](../public/licenses/GRASS-AUDIO.md). Files are unchanged; runtime mixes samples and crossfades tails for vegetation rustle. Environmental wind, bells, breathing, birds and drone tones retain their existing synthesized sources.
 
 ## Original armor and environment
 

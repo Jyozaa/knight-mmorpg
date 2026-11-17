@@ -4,6 +4,7 @@ import {
   BLACK_LEVEL,
   HISTORY_DEADBAND,
   HISTORY_DEPTH_TOLERANCE,
+  HERO_HISTORY_DEPTH_TOLERANCE,
 } from "./AsciiMath";
 import { createGlyphAtlas } from "./GlyphAtlas";
 import { GpuProfiler } from "./GpuProfiler";
@@ -12,7 +13,7 @@ const historyFragment = `
 precision highp float;
 uniform sampler2D sceneTex,previous,depthTex;
 uniform vec2 cells,texel;
-uniform mat4 inverseVP,previousVP,inverseProjection;
+uniform mat4 inverseVP,previousVP,inverseProjection,previousView,previousHero,inverseHero;
 uniform float initialized,deltaTime;
 varying vec2 vUv;
 float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
@@ -61,12 +62,16 @@ void main(){
  value=clamp(value+detail*value,0.,1.);
  float encodedDepth=log2(max(.1,-vp.z)+1.)/10.;
  vec4 world=inverseVP*vec4(p*2.-1.,depth*2.-1.,1.);world/=world.w;
- vec4 oldClip=previousVP*world;vec2 oldUv=oldClip.xy/oldClip.w*.5+.5;
+ bool hero=style==1.||style==2.;
+ vec4 oldWorld=hero?previousHero*inverseHero*world:world;
+ vec4 oldClip=previousVP*oldWorld;vec2 oldUv=oldClip.xy/oldClip.w*.5+.5;
  vec4 old=texture2D(previous,oldUv);
  float previousStyle=floor(floor(old.g*64.+.5)/8.);
  float motion=length((oldUv-p)*cells);
  float valid=initialized*step(0.,oldUv.x)*step(oldUv.x,1.)*step(0.,oldUv.y)*step(oldUv.y,1.);
- valid*=step(abs(encodedDepth-old.b),${HISTORY_DEPTH_TOLERANCE})*step(motion,7.)*step(abs(value-old.r),.22);
+ float expectedDepth=log2(max(.1,-(previousView*oldWorld).z)+1.)/10.;
+ valid*=step(abs(expectedDepth-old.b),hero?${HERO_HISTORY_DEPTH_TOLERANCE}:${HISTORY_DEPTH_TOLERANCE})*step(motion,7.)*step(abs(value-old.r),.22);
+ if(style==1.)valid*=step(abs(clamp((tag-.14)/.10,0.,.999)-old.a),.20);
  valid*=1.-step(.5,abs(previousStyle-style));
  float alpha=1.-exp(-22.*deltaTime);
  float stable=mix(old.r,value,alpha);
@@ -75,10 +80,10 @@ void main(){
  // History stores luminance, surface/edge classification, depth, and cloth red or grass curvature.
  float red=style==2.?clamp((color.r-max(color.g,color.b))/max(.02,color.r),0.,1.):0.;
  float edgeCode=(orientation+edge*4.+style*8.)/64.;
- if(valid>.5&&previousStyle==style&&motion<.7&&abs(value-old.r)<.035)edgeCode=old.g;
+ if(!hero&&valid>.5&&previousStyle==style&&motion<.7&&abs(value-old.r)<.035)edgeCode=old.g;
  float curve=floor(fract(sin(dot(floor(world.xz*3.),vec2(12.9898,78.233)))*43758.5453)*6.)/5.;
  if(style==1.)curve=clamp((tag-.14)/.10,0.,.999);
- if((style==3.||style==1.)&&valid>.5&&motion<.7)curve=old.a;
+ if(style==3.&&valid>.5&&motion<.7)curve=old.a;
  gl_FragColor=vec4(value,edgeCode,encodedDepth,(style==3.||style==1.)?curve:red);
 }`;
 const glyphFragment = `
@@ -120,10 +125,12 @@ export class AsciiRenderer {
   });
   private history = [
     new T.WebGLRenderTarget(1, 1, {
+      type: T.HalfFloatType,
       minFilter: T.NearestFilter,
       magFilter: T.NearestFilter,
     }),
     new T.WebGLRenderTarget(1, 1, {
+      type: T.HalfFloatType,
       minFilter: T.NearestFilter,
       magFilter: T.NearestFilter,
     }),
@@ -133,10 +140,14 @@ export class AsciiRenderer {
   private quad: T.Mesh<T.PlaneGeometry, T.ShaderMaterial>;
   private updateMaterial: T.ShaderMaterial;
   private glyphMaterial: T.ShaderMaterial;
+  private shadedMaterial: T.ShaderMaterial;
   private index = 0;
   private vp = new T.Matrix4();
   private previousVP = new T.Matrix4();
   private inverseVP = new T.Matrix4();
+  private previousView = new T.Matrix4();
+  private previousHero = new T.Matrix4();
+  private inverseHero = new T.Matrix4();
   columns = 0;
   rows = 0;
   drawCalls = 0;
@@ -146,6 +157,7 @@ export class AsciiRenderer {
   constructor(
     container: HTMLElement,
     private settings: Settings,
+    readonly shaded = false,
   ) {
     this.renderer = new T.WebGLRenderer({
       antialias: false,
@@ -153,8 +165,12 @@ export class AsciiRenderer {
       alpha: false,
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-    this.renderer.outputColorSpace = T.LinearSRGBColorSpace;
-    this.renderer.toneMapping = T.NoToneMapping;
+    this.renderer.outputColorSpace = shaded
+      ? T.SRGBColorSpace
+      : T.LinearSRGBColorSpace;
+    this.renderer.toneMapping = shaded
+      ? T.ACESFilmicToneMapping
+      : T.NoToneMapping;
     this.renderer.info.autoReset = false;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = T.PCFSoftShadowMap;
@@ -181,6 +197,9 @@ export class AsciiRenderer {
         inverseVP: { value: this.inverseVP },
         previousVP: { value: this.previousVP },
         inverseProjection: { value: new T.Matrix4() },
+        previousView: { value: this.previousView },
+        previousHero: { value: this.previousHero },
+        inverseHero: { value: this.inverseHero },
         initialized: { value: 0 },
         deltaTime: { value: 1 / 60 },
       },
@@ -195,6 +214,19 @@ export class AsciiRenderer {
         atlas: { value: atlas.atlas },
         cells: { value: new T.Vector2() },
       },
+      depthTest: false,
+      depthWrite: false,
+    });
+    // Semantic surface alpha belongs only in the HDR scene buffer. Present
+    // opaque color so canvas video capture cannot unpremultiply the surface tags.
+    this.shadedMaterial = new T.ShaderMaterial({
+      vertexShader: vertex,
+      fragmentShader: `uniform sampler2D sceneTex;varying vec2 vUv;
+void main(){gl_FragColor=vec4(texture2D(sceneTex,vUv).rgb,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`,
+      uniforms: { sceneTex: { value: this.target.texture } },
       depthTest: false,
       depthWrite: false,
     });
@@ -221,10 +253,29 @@ export class AsciiRenderer {
     this.updateMaterial.uniforms.initialized.value = 0;
     this.glyphMaterial.uniforms.cells.value.set(this.columns, this.rows);
   }
-  render(scene: T.Scene, camera: T.Camera, dt = 1 / 60, grass?: T.Group) {
+  render(
+    scene: T.Scene,
+    camera: T.Camera,
+    dt = 1 / 60,
+    grass?: T.Group,
+    hero?: T.Object3D,
+  ) {
     this.profiler.poll();
     this.renderer.info.reset();
+    if (this.shaded) {
+      this.renderer.setRenderTarget(this.target);
+      this.renderer.render(scene, camera);
+      this.drawCalls = this.renderer.info.render.calls;
+      this.quad.material = this.shadedMaterial;
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(this.passScene, this.camera);
+      return;
+    }
     camera.updateMatrixWorld();
+    if (hero) {
+      hero.updateWorldMatrix(true, false);
+      this.inverseHero.copy(hero.matrixWorld).invert();
+    }
     this.vp.multiplyMatrices(
       camera.projectionMatrix,
       camera.matrixWorldInverse,
@@ -258,6 +309,8 @@ export class AsciiRenderer {
     this.index = next;
     this.updateMaterial.uniforms.initialized.value = 1;
     this.previousVP.copy(this.vp);
+    this.previousView.copy(camera.matrixWorldInverse);
+    if (hero) this.previousHero.copy(hero.matrixWorld);
     // Isolated diagnostic grass pass is opt-in and runs only every 120 frames.
     if (grass && this.profiler.enabled && ++this.profileFrame % 120 === 0) {
       const saved: T.Object3D[] = [];

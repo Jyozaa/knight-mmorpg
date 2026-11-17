@@ -16,17 +16,48 @@ import { terrainMaterial } from "./world/terrain";
 import { UI, type Screen } from "./ui/UI";
 
 import { prepareArmor } from "./character/model/buildArmor";
+import { prepareImportedAvatar } from "./character/model/ImportedAvatar";
 
 async function boot() {
+  const review = new URLSearchParams(location.search);
+  const appearance =
+    review.get("knight") === "authored" ? "authored" : "imported";
   await prepareArmor();
+  if (appearance === "imported") await prepareImportedAvatar();
   const settings = readSettings(),
     ui = new UI(settings);
   const wind = new WindSystem();
-  const renderer = new AsciiRenderer(ui.viewport, settings),
+  const renderer = new AsciiRenderer(
+      ui.viewport,
+      settings,
+      review.get("render") === "shaded",
+    ),
     world = new World(wind),
-    knight = new Knight(wind),
+    knight = new Knight(wind, appearance),
     player = new CharacterController();
   world.scene.add(knight.root);
+  if (review.has("compare")) {
+    const panel = document.createElement("nav");
+    panel.setAttribute("aria-label", "Character comparison");
+    panel.style.cssText =
+      "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:100;display:flex;gap:12px;background:#080808e8;padding:10px;font:12px monospace;border:1px solid #555";
+    for (const [label, key, value] of [
+      ["Authored v0.5", "knight", "authored"],
+      ["Supplied knight", "knight", "imported"],
+      ["ASCII", "render", "ascii"],
+      ["Shaded 3D", "render", "shaded"],
+    ]) {
+      const link = document.createElement("a"),
+        params = new URLSearchParams(review);
+      params.set(key, value);
+      params.set("diagnostics", "");
+      link.href = `?${params}`;
+      link.textContent = label;
+      link.style.color = "#ddd";
+      panel.append(link);
+    }
+    document.body.append(panel);
+  }
   knight.root.position.copy(player.position);
   knight.root.rotation.y = player.rotation;
   const camera = new CameraController(player.position, world.obstacles),
@@ -215,7 +246,13 @@ async function boot() {
         );
       }
     }
-    renderer.render(world.scene, camera.camera, dt, world.grass.group);
+    renderer.render(
+      world.scene,
+      camera.camera,
+      dt,
+      world.grass.group,
+      knight.root,
+    );
     input.endFrame();
     frameCount++;
     frameTimer += raw;
@@ -237,6 +274,7 @@ async function boot() {
   ) {
     Object.defineProperty(window, "__lastBell", {
       value: {
+        inspectCharacter: () => knight.imported?.inspectSurfaces() ?? null,
         captureStream: () => {
           const stream = renderer.renderer.domElement.captureStream(60),
             sound = audio.captureStream();

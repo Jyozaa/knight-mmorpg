@@ -175,11 +175,28 @@ function capture(name: string) {
       rig.hands[i].quaternion.identity();
       aimBone(rig.thighs[i], v(`${side}femur`), v(`${side}femur`, true));
       aimBone(rig.shins[i], v(`${side}tibia`), v(`${side}tibia`, true));
-      const forward = v(`${side}toes`, true)
-          .sub(v(`${side}toes`))
+      const forward = v(`${side}foot`, true)
+          .sub(v(`${side}foot`))
           .normalize(),
-        yaw = Math.atan2(forward.x, forward.z),
-        pitch = -Math.atan2(forward.y, Math.hypot(forward.x, forward.z));
+        // The ankle-to-ball segment is captured; the short toe extension is not reliable.
+        // Keep its yaw defined during near-vertical toe-off rather than flipping by pi.
+        yaw = T.MathUtils.clamp(
+          Math.atan2(forward.x, Math.max(0.15, forward.z)),
+          -0.35,
+          0.35,
+        ),
+        restPitch = -Math.atan2(
+          source[`${side}foot`].direction.y,
+          Math.hypot(
+            source[`${side}foot`].direction.x,
+            source[`${side}foot`].direction.z,
+          ),
+        ),
+        pitch = T.MathUtils.clamp(
+          -Math.atan2(forward.y, Math.hypot(forward.x, forward.z)) - restPitch,
+          -0.85,
+          0.65,
+        );
       rig.feet[i].parent!.getWorldQuaternion(new T.Quaternion());
       const parent = rig.feet[i]
         .parent!.getWorldQuaternion(new T.Quaternion())
@@ -276,12 +293,14 @@ for (const key of ["walk", "run"]) {
       +p[2].toFixed(5),
     ]),
     contacts: frame.feet.map(
-      (p, side) => p[1] < minima[side] + (key === "walk" ? 0.045 : 0.055),
+      (p, side) => p[1] < minima[side] + (key === "walk" ? 0.02 : 0.035),
     ),
     root: frame.root,
   }));
   for (let i = 0; i < frames.length; i++) {
-    const weight = Math.max(0, (i / (frames.length - 1) - 0.86) / 0.14);
+    const t = i / (frames.length - 1),
+      blend = T.MathUtils.smoothstep(t, 0.86, 1),
+      weight = blend * blend * (3 - 2 * blend);
     if (weight > 0)
       for (let b = 0; b < 18; b++) {
         const q = new T.Quaternion()
@@ -289,6 +308,17 @@ for (const key of ["walk", "run"]) {
           .slerp(new T.Quaternion().fromArray(frames[0].q, b * 4), weight);
         q.toArray(frames[i].q, b * 4);
       }
+  }
+  // Closing only quaternions leaves ankle positions and pelvis height discontinuous.
+  const last = structuredClone(frames.at(-1)!);
+  for (let i = 0; i < frames.length; i++) {
+    const t = i / (frames.length - 1),
+      w = t * t * t * (t * (t * 6 - 15) + 10);
+    frames[i].hip -= (last.hip - frames[0].hip) * w;
+    for (let side = 0; side < 2; side++)
+      for (let axis = 0; axis < 3; axis++)
+        frames[i].feet[side][axis] -=
+          (last.feet[side][axis] - frames[0].feet[side][axis]) * w;
   }
   const entry = frames.findIndex(
     (f, i) => i > 0 && f.contacts[0] && !frames[i - 1].contacts[0],

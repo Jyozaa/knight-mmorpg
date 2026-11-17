@@ -1,6 +1,6 @@
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
-// General GLTF cache for future props. The knight uses the original sculpt GLB
-// via prepareArmor, preserving its neutral joint axes for contact correction.
+// General GLTF cache for props and the supplied knight. The retained canonical rig
+// uses the original sculpt GLB via prepareArmor, preserving neutral axes for contact correction.
 export class AssetLoader {
   private loader = new GLTFLoader();
   private cache = new Map<string, Promise<GLTF>>();

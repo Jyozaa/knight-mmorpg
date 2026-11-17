@@ -2,7 +2,13 @@ import * as T from "three";
 import { damp, smoothstep } from "../../config";
 import { heightAt } from "../../world/terrain";
 import type { Rig } from "../model/buildArmor";
-import { solveKnee, aimBone, wrapPhase, smoother } from "./kinematics";
+import {
+  solveKnee,
+  aimBone,
+  wrapPhase,
+  smoother,
+  springStep,
+} from "./kinematics";
 import { LocomotionClips } from "./LocomotionClips";
 interface FootState {
   anchor: T.Vector3;
@@ -14,6 +20,9 @@ interface FootState {
   phase: number;
   idleTime: number;
   idleStep: boolean;
+  planting: boolean;
+  transition: number;
+  correction: T.Vector3;
 }
 export class KnightAnimator {
   private phase = 0.08;
@@ -34,6 +43,7 @@ export class KnightAnimator {
   private impact = 0;
   private impactVelocity = 0;
   private support = 0;
+  private pelvisCorrection = 0;
   consumeFootfalls() {
     const events = this.landings;
     this.landings = 0;
@@ -49,6 +59,7 @@ export class KnightAnimator {
   private origin = new T.Vector3();
   private knee = new T.Vector3();
   private pole = new T.Vector3();
+  private legAxis = new T.Vector3();
   private target = new T.Vector3();
   private q = new T.Quaternion();
   private oldArm = new T.Quaternion();
@@ -65,6 +76,9 @@ export class KnightAnimator {
     phase: 0,
     idleTime: 0,
     idleStep: false,
+    planting: true,
+    transition: 1,
+    correction: new T.Vector3(),
   }));
   constructor(
     private root: T.Group,
@@ -163,8 +177,13 @@ export class KnightAnimator {
       this.stoppedAtRun,
     );
     const pose = this.clips.rotations;
-    this.impactVelocity += (-this.impact * 150 - this.impactVelocity * 22) * dt;
-    this.impact += this.impactVelocity * dt;
+    [this.impact, this.impactVelocity] = springStep(
+      this.impact,
+      this.impactVelocity,
+      150,
+      22,
+      dt,
+    );
     const planted =
       this.feet[0].contact && !this.feet[1].contact
         ? -1
@@ -174,9 +193,13 @@ export class KnightAnimator {
     this.support = damp(this.support, planted, 9, dt);
     const tiredWalk = this.stride * (1 - this.run) * (1 - restWeight);
     for (let i = 0; i < 2; i++) {
-      this.handVelocity[i] +=
-        (-this.handLag[i] * 95 - this.handVelocity[i] * 16) * dt;
-      this.handLag[i] += this.handVelocity[i] * dt;
+      [this.handLag[i], this.handVelocity[i]] = springStep(
+        this.handLag[i],
+        this.handVelocity[i],
+        95,
+        16,
+        dt,
+      );
     }
     const blendRest = (
       bone: T.Bone,
@@ -264,20 +287,25 @@ export class KnightAnimator {
     }
     if (restTime === null) {
       let lower = 0;
-      for (let i = 0; i < 2; i++)
-        if (this.feet[i].contact) {
-          r.thighs[i].getWorldPosition(this.origin);
-          const goal = this.feet[i].target;
-          const horizontal = Math.hypot(
-            this.origin.x - goal.x,
-            this.origin.z - goal.z,
-          );
-          const maxY =
-            goal.y +
-            Math.sqrt(Math.max(0.01, 0.876 * 0.876 - horizontal * horizontal));
-          lower = Math.max(lower, this.origin.y - maxY);
-        }
-      r.hips.position.y -= Math.max(0, Math.min(0.16, lower));
+      for (let i = 0; i < 2; i++) {
+        r.thighs[i].getWorldPosition(this.origin);
+        const goal = this.feet[i].target;
+        const horizontal = Math.hypot(
+          this.origin.x - goal.x,
+          this.origin.z - goal.z,
+        );
+        const maxY =
+          goal.y +
+          Math.sqrt(Math.max(0.01, 0.876 * 0.876 - horizontal * horizontal));
+        lower = Math.max(lower, this.origin.y - maxY);
+      }
+      this.pelvisCorrection = damp(
+        this.pelvisCorrection,
+        Math.max(0, Math.min(0.16, lower)),
+        20,
+        dt,
+      );
+      r.hips.position.y -= this.pelvisCorrection;
       this.root.updateMatrixWorld(true);
     }
     r.shins.forEach((bone, i) => bone.getWorldPosition(this.authoredKnees[i]));
@@ -288,7 +316,23 @@ export class KnightAnimator {
       this.pole.copy(this.forward).addScaledVector(this.side, side * 0.1);
       if (restWeight < 1) {
         this.target.copy(this.authoredKnees[i]).sub(this.origin);
-        this.pole.lerp(this.target, 1 - restWeight);
+        // A nearly straight captured knee has an ill-conditioned bend plane.
+        // Resolve the projected plane before IK; never flip the whole hip-to-knee vector.
+        this.legAxis.subVectors(foot.target, this.origin).normalize();
+        this.target.addScaledVector(
+          this.legAxis,
+          -this.target.dot(this.legAxis),
+        );
+        this.pole
+          .addScaledVector(this.legAxis, -this.pole.dot(this.legAxis))
+          .normalize();
+        const confidence = smoothstep(0.015, 0.075, this.target.length());
+        this.target.normalize();
+        const forwardBend = smoothstep(0.2, 0.7, this.target.dot(this.pole));
+        this.pole.lerp(
+          this.target,
+          confidence * forwardBend * (1 - restWeight),
+        );
       }
       solveKnee(this.origin, foot.target, this.pole, 0.445, 0.435, this.knee);
       aimBone(r.thighs[i], this.origin, this.knee);
@@ -386,7 +430,9 @@ export class KnightAnimator {
       this.local.y = heightAt(this.local.x, this.local.z) + 0.095;
       if (
         !f.idleStep &&
-        (f.swinging || f.target.distanceTo(this.local) > 0.13) &&
+        (f.swinging ||
+          f.transition < 1 ||
+          f.target.distanceTo(this.local) > 0.13) &&
         !this.feet[1 - index].idleStep
       ) {
         f.idleStep = true;
@@ -406,6 +452,9 @@ export class KnightAnimator {
           f.idleStep = false;
           f.swinging = false;
           f.contact = true;
+          f.planting = true;
+          f.transition = 1;
+          f.correction.set(0, 0, 0);
         }
       } else {
         f.target.copy(f.anchor);
@@ -425,11 +474,24 @@ export class KnightAnimator {
     this.local.y =
       heightAt(this.local.x, this.local.z) +
       T.MathUtils.lerp(0.095, candidate.y, this.stride);
-    const contact = this.clips.contacts[index];
-    if (contact && !f.contact) f.anchor.copy(this.local);
-    if (!contact) f.target.copy(this.local);
-    else f.target.copy(f.anchor);
-    f.contact = contact;
+    const contact =
+      this.clips.contactWeights[index] > (f.planting ? 0.35 : 0.65);
+    if (contact !== f.planting) {
+      if (contact) {
+        f.anchor.copy(this.local);
+        f.anchor.y = heightAt(f.anchor.x, f.anchor.z) + 0.095;
+        f.correction.copy(f.target).sub(f.anchor);
+      } else f.correction.copy(f.target).sub(this.local);
+      f.transition = 0;
+      f.planting = contact;
+    }
+    // Inertialize the correction, not the human swing curve. A released anchor
+    // cannot teleport to the captured ankle; its offset decays with zero endpoint slope.
+    f.transition = Math.min(1, f.transition + dt / (contact ? 0.065 : 0.14));
+    f.target
+      .copy(contact ? f.anchor : this.local)
+      .addScaledVector(f.correction, 1 - smoother(f.transition));
+    f.contact = contact && f.transition === 1;
     f.swinging = !contact;
   }
 

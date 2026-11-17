@@ -1,9 +1,9 @@
-/** Records actual rendered frames and the live master bus at the canvas's native 60 Hz.
+/** Records actual rendered frames and the live master bus at requested 60 Hz.
  * All locomotion segments are uninterrupted, and no simulation time is advanced artificially. */
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import assert from "node:assert/strict";
-const folder = "test-results/v05";
+const folder = process.env.CAPTURE_FOLDER || "test-results/v06";
 mkdirSync(folder, { recursive: true });
 const browser = await chromium.launch({
   channel: process.env.BROWSER_CHANNEL || "chrome",
@@ -48,9 +48,9 @@ try {
   await wait(1500);
   await page.evaluate(() => {
     const stream = window.__lastBell.captureStream(),
-      mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-        ? "video/webm;codecs=vp9,opus"
-        : "video/webm;codecs=vp8,opus";
+      mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+        ? "video/webm;codecs=vp8,opus"
+        : "video/webm;codecs=vp9,opus";
     const recorder = new MediaRecorder(stream, {
         mimeType: mime,
         videoBitsPerSecond: 12500000,
@@ -147,7 +147,7 @@ try {
   await wait(1600);
   await orbit(-380);
   await shot("side-closeup");
-  await shot("sheathed-sword");
+  await shot("equipment-detail");
   await wait(1200);
   mark("portraitEnd");
   await orbit(-720, 170);
