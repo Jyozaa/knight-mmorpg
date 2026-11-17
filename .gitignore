@@ -1,0 +1,16 @@
+node_modules/
+dist/
+references/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+.vite/
+.cache/
+test-results/
+playwright-report/
+.taste-skill/
+
+frames/
+tmp/

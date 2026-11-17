@@ -1,0 +1,744 @@
+@font-face {
+  font-family: "Cormorant Garamond";
+  src: url("/fonts/cormorant-garamond.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+}
+:root {
+  font-family: "Manrope", Arial, sans-serif;
+  color: #e1dfd7;
+  background: #080b0d;
+  font-synthesis: none;
+  --gold: #bbaa89;
+  --muted: #949994;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+button {
+  border: 0;
+  background: none;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 5px;
+}
+button:hover {
+  color: #f1e4c7;
+}
+button:active {
+  transform: translateY(1px);
+}
+[hidden] {
+  display: none !important;
+}
+#world,
+#world canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#world canvas {
+  touch-action: none;
+}
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(5, 8, 10, 0.45), transparent 60%);
+  box-shadow: inset 0 0 160px 20px #0004;
+}
+.menu {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    90deg,
+    #080b0de8 0%,
+    #080b0d9c 27%,
+    transparent 62%
+  );
+  animation: enter 1.6s ease both;
+}
+.masthead {
+  position: absolute;
+  top: 34px;
+  left: 4.4%;
+  right: 4.4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #cfcdc2;
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 3px;
+  font-weight: 600;
+}
+.bell {
+  width: 28px;
+  height: 34px;
+  color: var(--gold);
+}
+.edition {
+  font:
+    9px "Manrope",
+    sans-serif;
+  letter-spacing: 2px;
+  color: #aaaea7;
+}
+.dot {
+  margin: 0 15px;
+  color: var(--gold);
+}
+.menu-copy {
+  position: absolute;
+  left: 9%;
+  top: 25%;
+  width: 440px;
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 2.8px;
+  line-height: 1.8;
+}
+.eyebrow > span {
+  width: 24px;
+  height: 1px;
+  background: var(--gold);
+}
+h1 {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(64px, 6.8vw, 104px);
+  letter-spacing: -2px;
+  line-height: 0.86;
+  margin: 32px 0 25px;
+  color: #e8e5da;
+}
+h1 > span {
+  letter-spacing: 8px;
+}
+h1 i {
+  font-style: normal;
+  color: var(--gold);
+  margin-left: 3px;
+}
+.intro {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 19px;
+  line-height: 1.5;
+  color: #a6aaa4;
+  letter-spacing: 0.2px;
+  margin: 0;
+}
+.menu-actions {
+  width: 250px;
+  margin-top: 33px;
+}
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid #a999746b;
+  background: #b3a17a10;
+  padding: 0 20px;
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.7px;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.primary:hover {
+  background: #b3a17a23;
+  border-color: #b3a17a;
+}
+.primary > span:last-child {
+  color: var(--gold);
+  font-size: 18px;
+}
+.secondary {
+  display: flex;
+  gap: 36px;
+  margin-top: 13px;
+}
+.secondary button {
+  font-size: 10px;
+  color: #979d96;
+  min-height: 40px;
+  padding: 0;
+}
+.secondary button span {
+  margin-left: 19px;
+  font-size: 13px;
+  color: #6d756d;
+}
+.scene-label {
+  position: absolute;
+  bottom: 142px;
+  right: 6.5%;
+  display: flex;
+  gap: 15px;
+  color: #bfc2b8;
+  align-items: center;
+}
+.scene-label div > span {
+  font-size: 8px;
+  letter-spacing: 2.4px;
+}
+.scene-label p {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 16px;
+  color: #939e95;
+  margin: 8px 0 0;
+}
+.small-cross {
+  font: 26px Georgia;
+  color: var(--gold);
+}
+.menu-footer {
+  position: absolute;
+  bottom: 29px;
+  left: 4.4%;
+  right: 4.4%;
+  border-top: 1px solid #a6a99725;
+  padding-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 1.6px;
+  color: #7e8881;
+}
+.sound-note {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.sound-bars {
+  font-size: 17px;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.chapter {
+  position: absolute;
+  top: 36px;
+  left: 40px;
+}
+.chapter .eyebrow {
+  font-size: 8px;
+  margin: 0;
+}
+.chapter h2 {
+  font:
+    28px "Cormorant Garamond",
+    Georgia,
+    serif;
+  margin: 7px 0;
+}
+.chapter p {
+  font-size: 10px;
+  color: #a4aaa0;
+  margin-top: 11px;
+  letter-spacing: 0.4px;
+}
+.hud-top-right {
+  position: absolute;
+  top: 34px;
+  right: 36px;
+  display: flex;
+  gap: 24px;
+}
+.hud-top-right button {
+  min-height: 36px;
+  min-width: 36px;
+  color: #c2c5ba;
+  font-size: 15px;
+}
+.hud-top-right button span {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  margin-left: 8px;
+  color: #7b897e;
+}
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+#hud button {
+  pointer-events: auto;
+}
+.compass {
+  position: absolute;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  font: 9px "Manrope";
+  color: #7d897e;
+}
+.compass .north {
+  color: #d5c4a0;
+}
+.compass i {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  transform: translateX(-50%);
+  font-size: 7px;
+  color: var(--gold);
+  font-style: normal;
+}
+.hint {
+  position: absolute;
+  bottom: 32px;
+  left: 36px;
+  font-size: 9px;
+  color: #9aab9c;
+  letter-spacing: 0.5px;
+  transition: opacity 2s;
+}
+.hint span {
+  margin: 0 9px;
+  color: #657567;
+}
+.hint.faded {
+  opacity: 0;
+}
+#prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 19px;
+  text-shadow: 0 2px 6px #000;
+}
+kbd {
+  border: 1px solid #c9c4af88;
+  color: #d9c7a0;
+  padding: 7px 10px;
+  font: 12px "Manrope";
+  background: #080b0d80;
+}
+.prompt-line {
+  height: 1px;
+  background: #bbaa8966;
+  width: 30px;
+}
+#cinema {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6.5vh;
+  background: #07090a;
+  transition: height 1.5s;
+}
+.top {
+  top: 0;
+}
+.bottom {
+  bottom: 0;
+}
+#quote {
+  position: absolute;
+  bottom: 17%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font:
+    italic 25px/1.6 "Cormorant Garamond",
+    Georgia,
+    serif;
+  letter-spacing: 0.5px;
+  opacity: 0;
+  transition: opacity 4s;
+  color: #dbd5c4;
+  text-shadow: 0 1px 10px #000;
+}
+#quote.visible {
+  opacity: 1;
+}
+#return {
+  position: absolute;
+  bottom: 2vh;
+  right: 36px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #bcbba9;
+  pointer-events: auto;
+  min-height: 30px;
+}
+#return span {
+  margin-left: 24px;
+}
+.cinema-label {
+  position: absolute;
+  bottom: 2.8vh;
+  left: 36px;
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: #837d6e;
+}
+.pause-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: #070b0ddd;
+  backdrop-filter: blur(7px);
+  display: grid;
+  place-items: center;
+}
+.pause-screen > div {
+  width: 320px;
+}
+.pause-screen h2 {
+  font:
+    44px "Cormorant Garamond",
+    Georgia;
+  margin: 22px 0 36px;
+}
+.text-button {
+  min-height: 40px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: #b2b5a9;
+}
+.pause-screen .text-button {
+  display: block;
+  margin-top: 13px;
+}
+dialog {
+  background: #101518f5;
+  border: 1px solid #737d6e55;
+  color: #d9dbce;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 40px 44px;
+  width: 490px;
+  max-width: calc(100vw - 36px);
+  box-shadow: 0 20px 120px #0009;
+}
+dialog::backdrop {
+  background: #030708bd;
+  backdrop-filter: blur(6px);
+}
+dialog h2 {
+  font:
+    42px "Cormorant Garamond",
+    Georgia;
+  margin: 10px 0 27px;
+}
+.close-modal {
+  position: absolute;
+  right: 15px;
+  top: 12px;
+  font: 26px Georgia;
+  min-width: 36px;
+  min-height: 36px;
+  color: #9fa89a;
+}
+.settings-section {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  margin: 23px 0 9px;
+  border-bottom: 1px solid #75816d33;
+  padding-bottom: 12px;
+}
+.setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  min-height: 43px;
+  font-size: 11px;
+}
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.setting input {
+  accent-color: #b8a780;
+  width: 120px;
+  height: 22px;
+  cursor: pointer;
+}
+.setting output {
+  font-size: 9px;
+  width: 30px;
+  text-align: right;
+  color: #969d90;
+}
+select {
+  border: 1px solid #79846e44;
+  background: #141b1c;
+  color: #cacdbf;
+  padding: 7px 9px;
+  font: 10px "Manrope";
+  width: 132px;
+}
+.fullscreen-button {
+  margin-top: 17px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.setting-note {
+  font-size: 9px;
+  color: #747f70;
+  margin: 18px 0 0;
+}
+.credits-copy {
+  font: 14px/1.8 "Manrope";
+  color: #a7afa0;
+}
+#help {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 32px 38px;
+  width: 390px;
+  max-width: 94vw;
+  background: #0b1113f5;
+  border: 1px solid #8b967a55;
+  z-index: 5;
+}
+#help h2 {
+  font:
+    30px "Cormorant Garamond",
+    Georgia;
+}
+dl {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 14px;
+  font-size: 11px;
+}
+dt {
+  color: #b9a887;
+}
+dd {
+  margin: 0;
+  color: #b0b7aa;
+}
+#help > p:last-of-type {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #8d9988;
+}
+#diagnostics {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  padding: 12px;
+  white-space: pre;
+  font: 11px/1.6 monospace;
+  background: #000b;
+  color: #c8d5b3;
+  z-index: 9;
+}
+#error {
+  position: fixed;
+  inset: 20%;
+  z-index: 20;
+  padding: 40px;
+  background: #131819;
+  border: 1px solid #af9a70;
+  color: #e6ddc8;
+  font: 16px/1.7 "Manrope";
+  overflow: auto;
+}
+#error a {
+  color: var(--gold);
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-height: 950px) {
+  .menu-copy {
+    top: 28%;
+  }
+}
+@media (max-width: 800px) {
+  .edition {
+    display: none;
+  }
+  .menu-copy {
+    left: 7%;
+    width: 350px;
+    top: 27%;
+  }
+  h1 {
+    font-size: 78px;
+  }
+  .menu-footer > span:last-child {
+    display: none;
+  }
+  .menu-footer {
+    font-size: 7px;
+  }
+  .scene-label {
+    bottom: 120px;
+    right: 5%;
+  }
+  .chapter {
+    left: 23px;
+    top: 25px;
+  }
+  .hint {
+    left: 23px;
+    bottom: 70px;
+    font-size: 8px;
+  }
+  .hud-top-right {
+    right: 20px;
+    top: 22px;
+  }
+  .hud-top-right button span {
+    display: none;
+  }
+}
+@media (max-width: 480px) {
+  .menu {
+    background: linear-gradient(90deg, #080b0dd9, transparent 100%);
+  }
+  .menu-copy {
+    top: 24%;
+    width: 290px;
+  }
+  .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1.8px;
+  }
+  h1 {
+    font-size: 68px;
+    margin-top: 26px;
+  }
+  .intro {
+    font-size: 17px;
+  }
+  .menu-actions {
+    width: 225px;
+    margin-top: 25px;
+  }
+  .scene-label {
+    display: none;
+  }
+  .menu-footer {
+    bottom: 21px;
+    gap: 20px;
+    line-height: 1.7;
+  }
+  .sound-note {
+    max-width: 170px;
+  }
+  .masthead {
+    top: 23px;
+  }
+  .chapter h2 {
+    font-size: 25px;
+  }
+  .chapter p {
+    max-width: 180px;
+    line-height: 1.7;
+  }
+  .compass {
+    bottom: 26px;
+  }
+  #prompt {
+    bottom: 22%;
+    font-size: 17px;
+  }
+  dialog {
+    padding: 28px 24px;
+  }
+  .setting input {
+    width: 100px;
+  }
+  #quote {
+    font-size: 21px;
+    padding: 0 25px;
+  }
+  .cinema-label {
+    display: none;
+  }
+  .grain {
+    box-shadow: inset 0 0 80px #0005;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+  }
+  button,
+  .hint,
+  #quote {
+    transition: none;
+  }
+}
