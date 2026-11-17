@@ -18,6 +18,8 @@ Matching front/side/distance captures compare the retained v0.5 knight and suppl
 | Shaded front   | [Authored](screenshots/v06/authored-shaded-front.webp) | [Supplied](screenshots/v06/imported-shaded-front.webp) |
 | Shaded side    | [Authored](screenshots/v06/authored-shaded-side.webp)  | [Supplied](screenshots/v06/imported-shaded-side.webp)  |
 
+[Shaded walking still](screenshots/v06/v06-shaded-walk.webp) · [Shaded running still](screenshots/v06/v06-shaded-run.webp)
+
 ## Jitter diagnosis and repair
 
 The v0.5 baseline was captured with ASCII bypassed. Numerical tracing identified world-space ankle-target jumps up to **38.2 cm at 144 Hz** during planted-foot release. Source ankle curves also contained abrupt rotations from unreliable toe extensions. The defects existed before reconstruction. Additional causes included binary walk/run contact switching, a positional loop seam, near-straight knee ambiguity, discontinuous reach ownership and broad temporal depth acceptance.
