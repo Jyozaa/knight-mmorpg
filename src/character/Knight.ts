@@ -15,7 +15,7 @@ export class Knight {
   readonly sword: SheathedSword;
   constructor(readonly wind: WindSystem = new WindSystem()) {
     this.root.name = "Nameless knight — Gothic harness";
-    const model = buildArmor(this.root);
+    const model = buildArmor(this.root, wind);
     this.rig = model.rig;
     this.mesh = model.mesh;
     this.hips = this.rig.hips;

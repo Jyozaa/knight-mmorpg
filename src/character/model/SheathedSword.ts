@@ -12,7 +12,7 @@ export class SheathedSword {
     this.mount.name = "Left hip sword suspension";
     this.scabbard.name = "Leather scabbard with silver chape";
     this.sword.name = "Sheathed longsword — future draw socket";
-    this.mount.position.set(-0.3, 0.025, -0.1);
+    this.mount.position.set(-0.32, 0.025, 0.16);
     rig.hips.add(this.mount);
     this.mount.add(this.scabbard, this.sword);
     const steel = materials[1],
@@ -107,8 +107,8 @@ export class SheathedSword {
         seam(
           [
             new T.Vector3(0.0, y, -0.015),
-            new T.Vector3(0.13, y + 0.05, 0.0),
-            new T.Vector3(0.22, y + 0.06, 0.1),
+            new T.Vector3(0.1, y + 0.05, -0.025),
+            new T.Vector3(0.16, y + 0.06, -0.035),
           ],
           0.014,
         ),

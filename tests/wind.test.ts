@@ -1,3 +1,8 @@
+import { prepareArmor } from "../src/character/model/buildArmor.ts";
+import { readFile } from "node:fs/promises";
+await prepareArmor(
+  Uint8Array.from(await readFile("public/models/nameless-knight.glb")).buffer,
+);
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Vector3, Scene } from "three";
@@ -133,4 +138,22 @@ test("heavy boot events occur on actual stance entry, not an unrelated sound tim
   }
   assert.equal(events, contacts);
   assert.ok(events >= 14 && events <= 20);
+});
+
+test("wind remains field-correlated but sits well below the former foreground level", () => {
+  const p = { ...DEFAULT_WIND },
+    field = sample(),
+    out = { gain: 0, cutoff: 0, rustleGain: 0, rustleCutoff: 0, pan: 0 };
+  let low = Infinity,
+    high = 0;
+  for (let i = 0; i < 1200; i++) {
+    sampleWind(0, 7, i / 60, p, field);
+    windAudioTargets(field, field, 3, p, out);
+    const former = 0.035 + field.strength * 0.13 + field.gust * 0.14;
+    assert.ok(out.gain < former * 0.34);
+    assert.ok(out.gain < 0.08);
+    low = Math.min(low, out.gain);
+    high = Math.max(high, out.gain);
+  }
+  assert.ok(high > low * 1.7);
 });

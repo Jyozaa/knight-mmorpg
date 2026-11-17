@@ -2,13 +2,7 @@ import * as T from "three";
 import { damp, smoothstep } from "../../config";
 import { heightAt } from "../../world/terrain";
 import type { Rig } from "../model/buildArmor";
-import {
-  solveKnee,
-  aimBone,
-  wrapPhase,
-  swingProgress,
-  smoother,
-} from "./kinematics";
+import { solveKnee, aimBone, wrapPhase, smoother } from "./kinematics";
 import { LocomotionClips } from "./LocomotionClips";
 interface FootState {
   anchor: T.Vector3;
@@ -23,7 +17,12 @@ interface FootState {
 }
 export class KnightAnimator {
   private phase = 0.08;
+  private handLag = [0, 0];
+  private handVelocity = [0, 0];
+  private armHeights: number[] = [];
   private clips = new LocomotionClips();
+  private stopTime = -1;
+  private stoppedAtRun = false;
   private previousSpeed = 0;
   private acceleration = 0;
   private stride = 0;
@@ -53,6 +52,8 @@ export class KnightAnimator {
   private target = new T.Vector3();
   private q = new T.Quaternion();
   private oldArm = new T.Quaternion();
+  private authoredFeet = [new T.Quaternion(), new T.Quaternion()];
+  private authoredKnees = [new T.Vector3(), new T.Vector3()];
   private oldForearm = new T.Quaternion();
   readonly feet: FootState[] = Array.from({ length: 2 }, () => ({
     anchor: new T.Vector3(),
@@ -68,7 +69,9 @@ export class KnightAnimator {
   constructor(
     private root: T.Group,
     readonly rig: Rig,
-  ) {}
+  ) {
+    this.armHeights = rig.arms.map((b) => b.position.y);
+  }
   update(
     dt: number,
     time: number,
@@ -93,7 +96,7 @@ export class KnightAnimator {
       for (let i = 0; i < 2; i++)
         this.restStartFeet[i].copy(this.feet[i].target);
     this.stride = damp(this.stride, Math.min(1, speed / 0.65), 9, dt);
-    this.run = damp(this.run, smoothstep(2.0, 3.7, speed), 6, dt);
+    this.run = damp(this.run, smoothstep(1.7, 3.3, speed), 6, dt);
     this.direction.copy(this.velocity);
     if (actualSpeed > 0.04) this.direction.normalize();
     else
@@ -126,10 +129,13 @@ export class KnightAnimator {
     this.root.rotation.order = "YXZ";
     this.root.rotation.x = -Math.atan(slopeForward) * restWeight;
     this.root.rotation.z = Math.atan(slopeSide) * restWeight;
-    const strideLength = T.MathUtils.lerp(1.18, 2.45, this.run);
+    const strideLength = T.MathUtils.lerp(
+      this.clips.walkDistance,
+      this.clips.runDistance,
+      this.run,
+    );
     if (restTime === null && actualSpeed > 0.04)
       this.phase += (actualSpeed * dt) / strideLength;
-    const cycle = Math.PI * 2 * this.phase;
     this.acceleration = damp(
       this.acceleration,
       T.MathUtils.clamp(
@@ -141,10 +147,22 @@ export class KnightAnimator {
       dt,
     );
     this.previousSpeed = actualSpeed;
-    this.clips.update(this.phase, this.run, this.stride, time);
+    if (this.acceleration < -0.5 && this.stopTime < 0 && speed > 0.6) {
+      this.stopTime = 0;
+      this.stoppedAtRun = this.run > 0.5;
+    }
+    if (this.stopTime >= 0) this.stopTime += dt;
+    if (this.acceleration > 0.5 || this.stopTime > 1.1) this.stopTime = -1;
+    this.clips.update(
+      this.phase,
+      this.run,
+      this.stride,
+      time,
+      Math.min(1, Math.abs(turnRate) * 0.4),
+      this.stopTime,
+      this.stoppedAtRun,
+    );
     const pose = this.clips.rotations;
-    const stride = this.stride * (1 - restWeight),
-      run = this.run * (1 - restWeight);
     this.impactVelocity += (-this.impact * 150 - this.impactVelocity * 22) * dt;
     this.impact += this.impactVelocity * dt;
     const planted =
@@ -154,59 +172,67 @@ export class KnightAnimator {
           ? 1
           : 0;
     this.support = damp(this.support, planted, 9, dt);
-    const bob = this.clips.hipHeight * (1 - restWeight);
+    const tiredWalk = this.stride * (1 - this.run) * (1 - restWeight);
+    for (let i = 0; i < 2; i++) {
+      this.handVelocity[i] +=
+        (-this.handLag[i] * 95 - this.handVelocity[i] * 16) * dt;
+      this.handLag[i] += this.handVelocity[i] * dt;
+    }
+    const blendRest = (
+      bone: T.Bone,
+      q: T.Quaternion,
+      x: number,
+      y: number,
+      z: number,
+    ) => {
+      this.q.setFromEuler(new T.Euler(x, y, z));
+      bone.quaternion.copy(q).slerp(this.q, restWeight);
+    };
     r.hips.position.set(
-      Math.sin(cycle) * 0.035 * stride * (1 - restWeight) +
-        this.support * 0.012 * stride +
-        Math.sin(time * 0.6) * 0.005 * (1 - stride) * (1 - restWeight),
-      1.01 +
+      this.clips.hipOffset.x * (1 - restWeight),
+      this.clips.hipHeight * (1 - restWeight) +
+        1.01 * restWeight +
         this.impact * (1 - restWeight) -
-        0.065 * stride -
-        0.005 * run +
-        bob -
         0.055 * prepare -
         0.69 * sit -
         0.04 * recline,
-      0.035 * stride +
-        0.055 * run -
+      this.clips.hipOffset.z * (1 - restWeight) -
         0.07 * prepare -
         0.16 * sit -
         0.12 * recline,
     );
-    r.hips.rotation.set(
-      (pose[0].x - 0.045 * stride - 0.025 * run) * (1 - restWeight),
-      (pose[0].y + Math.sin(cycle) * 0.07 * stride) * (1 - restWeight),
-      (pose[0].z +
-        Math.sin(cycle) * 0.025 * stride -
-        T.MathUtils.clamp(turnRate * 0.025, -0.1, 0.1) * stride) *
-        (1 - restWeight),
-    );
+    blendRest(r.hips, pose[0], 0, 0, 0);
     r.spine.position.y = 0.11 - 0.1 * recline;
-    r.spine.rotation.set(
-      (pose[1].x - 0.09 * stride - 0.06 * run - this.acceleration * 0.018) *
-        (1 - restWeight) +
-        0.2 * prepare * (1 - sit) -
-        1.6 * recline,
-      (pose[1].y - Math.sin(cycle) * 0.045 * stride) * (1 - restWeight) +
-        Math.max(-0.16, Math.min(0.16, turnRate * 0.035)),
-      pose[1].z * (1 - restWeight),
-    );
-    r.chest.rotation.set(
-      pose[2].x * (1 - restWeight) - 0.08 * sit + 0.04 * recline,
-      (pose[2].y - Math.sin(cycle) * 0.055 * stride) * (1 - restWeight),
-      pose[2].z * (1 - restWeight),
-    );
-    r.chest.scale.y = 1 + Math.sin(time * 1.65) * 0.005;
-    r.head.rotation.set(
-      0.085 * stride +
-        0.045 * run +
-        0.06 * sit -
-        0.1 * recline +
-        Math.sin(time * 0.41) * 0.012 * (1 - restWeight),
-      Math.sin(time * 0.29) * 0.035 * (1 - restWeight),
+    blendRest(
+      r.spine,
+      pose[1],
+      0.2 * prepare * (1 - sit) - 1.6 * recline,
+      0,
       0,
     );
+    r.spine.rotateX(
+      T.MathUtils.clamp(this.acceleration * 0.008, -0.035, 0.035) *
+        (1 - restWeight),
+    );
+    blendRest(r.chest, pose[2], -0.08 * sit + 0.04 * recline, 0, 0);
+    r.spine.rotateX(0.035 * tiredWalk);
+    r.spine.rotateZ(-this.support * 0.009 * tiredWalk);
+    r.chest.rotateZ(this.support * 0.004 * tiredWalk);
+    r.chest.scale.y = 1 + Math.sin(time * 1.65) * 0.003;
+    blendRest(r.head, pose[3], 0.06 * sit - 0.1 * recline, 0, 0);
+    r.head.rotateX(0.012 * tiredWalk);
+    const limbs = [
+      ...r.arms,
+      ...r.forearms,
+      ...r.hands,
+      ...r.thighs,
+      ...r.shins,
+      ...r.feet,
+      ...r.toes,
+    ];
+    limbs.forEach((bone, i) => bone.quaternion.copy(pose[4 + i]));
     this.root.updateMatrixWorld(true);
+    r.feet.forEach((bone, i) => bone.getWorldQuaternion(this.authoredFeet[i]));
     // Rest clearance is authored in local terrain-aligned space. Pelvis stays level; spine reclines in two stages.
     for (let i = 0; i < 2; i++) {
       const foot = this.feet[i],
@@ -254,50 +280,46 @@ export class KnightAnimator {
       r.hips.position.y -= Math.max(0, Math.min(0.16, lower));
       this.root.updateMatrixWorld(true);
     }
+    r.shins.forEach((bone, i) => bone.getWorldPosition(this.authoredKnees[i]));
     for (let i = 0; i < 2; i++) {
       const foot = this.feet[i],
         side = i === 0 ? -1 : 1;
       r.thighs[i].getWorldPosition(this.origin);
       this.pole.copy(this.forward).addScaledVector(this.side, side * 0.1);
+      if (restWeight < 1) {
+        this.target.copy(this.authoredKnees[i]).sub(this.origin);
+        this.pole.lerp(this.target, 1 - restWeight);
+      }
       solveKnee(this.origin, foot.target, this.pole, 0.445, 0.435, this.knee);
       aimBone(r.thighs[i], this.origin, this.knee);
       aimBone(r.shins[i], this.knee, foot.target);
-      // Heel strike dorsiflexes; late stance rolls onto the toe. Swing carries
-      // that push-off into a lifted toe and returns to a heel-first landing.
-      const stance = T.MathUtils.lerp(0.62, 0.36, run);
-      const swing = swingProgress(foot.phase, stance),
-        contactPhase = foot.phase / stance;
-      const heel =
-        (restWeight
-          ? 0
-          : foot.swinging
-            ? T.MathUtils.lerp(0.23, -0.13, smoother(swing)) -
-              0.1 * Math.sin(swing * Math.PI)
-            : -0.13 * (1 - smoothstep(0, 0.22, contactPhase)) +
-              0.23 * smoothstep(0.67, 1, contactPhase)) * stride;
+      // Retain the captured foot pitch/yaw; only the terrain correction changes the leg chain.
+      // The captured foot quaternion is local to the uncorrected shin. Recover its
+      // world orientation from the authored chain before applying the new IK solution.
+      const authoredWorld = this.authoredFeet[i];
       r.feet[i].parent!.getWorldQuaternion(this.q);
-      r.feet[i].quaternion.copy(this.q.invert());
-      r.feet[i].rotateY(this.root.rotation.y);
-      r.feet[i].rotateX(heel + 0.06 * settle);
-      r.toes[i].rotation.x = -Math.max(0, heel) * 0.8;
+      r.feet[i].quaternion.copy(this.q.invert()).multiply(authoredWorld);
+      if (restWeight > 0) {
+        r.feet[i].quaternion.copy(this.q);
+        r.feet[i].rotateY(this.root.rotation.y);
+        r.feet[i].rotateX(0.06 * settle);
+      }
+      r.toes[i].rotation.x = 0;
       r.feet[i].updateMatrixWorld(true);
     }
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? -1 : 1;
-      const arm = pose[4 + i],
-        elbow = pose[6 + i];
-      r.arms[i].rotation.set(
-        arm.x * (1 - restWeight) + 0.15 * recline,
-        (arm.y + T.MathUtils.clamp(turnRate * 0.025, -0.12, 0.12) * stride) *
-          (1 - restWeight),
-        arm.z * (1 - restWeight) + side * 0.045,
-      );
-      r.forearms[i].rotation.set(
-        elbow.x * (1 - restWeight) - 0.12 * restWeight,
-        elbow.y * (1 - restWeight),
-        elbow.z * (1 - restWeight),
-      );
-      r.hands[i].rotation.set(0.02, 0, side * -0.06);
+      blendRest(r.arms[i], pose[4 + i], 0.15 * recline, 0, side * 0.045);
+      blendRest(r.forearms[i], pose[6 + i], -0.12, 0, 0);
+      blendRest(r.hands[i], pose[8 + i], 0.02, 0, side * -0.06);
+      r.arms[i].position.y =
+        this.armHeights[i] -
+        0.006 * tiredWalk +
+        side * this.support * 0.003 * tiredWalk;
+      r.arms[i].rotateX(side * this.support * 0.008 * tiredWalk);
+      r.forearms[i].rotateX(side * this.support * 0.006 * tiredWalk);
+      r.hands[i].rotateX((0.025 + this.handLag[i]) * tiredWalk);
+      r.hands[i].rotateZ((side * 0.025 - this.support * 0.012) * tiredWalk);
       // Supporting palm and wrist settle behind the body before the back comes down.
       const support =
         smoothstep(1.2, 2.8, rest) * (1 - smoothstep(6.0, 8.8, rest));
@@ -331,6 +353,7 @@ export class KnightAnimator {
         speed > 0.35
       ) {
         this.landings |= 1 << i;
+        this.handVelocity[1 - i] += 0.34 * (1 - this.run);
         this.impactVelocity -= 0.042 + 0.018 * this.run;
       }
       this.priorContacts[i] = contact;
@@ -351,8 +374,7 @@ export class KnightAnimator {
   }
   private walkFoot(index: number, dt: number, speed: number) {
     const f = this.feet[index],
-      side = index === 0 ? -1 : 1,
-      stance = T.MathUtils.lerp(0.62, 0.36, this.run);
+      side = index === 0 ? -1 : 1;
     const p = wrapPhase(this.phase + index * 0.5);
     f.phase = p;
     // Reset after a rest transition, without carrying old anchors from before sitting.
@@ -393,37 +415,33 @@ export class KnightAnimator {
       return;
     }
     f.idleStep = false;
-    const inSwing = p >= stance;
-    if (inSwing && !f.swinging) {
-      f.swinging = true;
-      f.start.copy(f.target);
-      const strideLength = T.MathUtils.lerp(1.18, 2.45, this.run);
-      const lead = strideLength * (0.48 - (p - stance));
-      f.end
-        .copy(this.root.position)
-        .addScaledVector(this.direction, lead)
-        .addScaledVector(this.side, side * 0.16);
-      f.end.y = heightAt(f.end.x, f.end.z) + 0.095;
-    }
-    if (!inSwing && f.swinging) {
-      f.swinging = false;
-      f.anchor.copy(f.end);
-    }
-    f.contact = !inSwing;
-    if (inSwing) {
-      const t = swingProgress(p, stance),
-        s = t * t * (3 - 2 * t);
-      f.target.copy(f.start).lerp(f.end, s);
-      f.target.y +=
-        Math.pow(Math.sin(Math.PI * t), 0.8) *
-        T.MathUtils.lerp(0.13, 0.29, this.run);
-    } else f.target.copy(f.anchor);
+    const candidate = this.clips.feet[index];
+    this.local.set(
+      T.MathUtils.lerp(side * 0.153, candidate.x, this.stride),
+      0,
+      T.MathUtils.lerp(0.025, candidate.z, this.stride),
+    );
+    this.root.localToWorld(this.local);
+    this.local.y =
+      heightAt(this.local.x, this.local.z) +
+      T.MathUtils.lerp(0.095, candidate.y, this.stride);
+    const contact = this.clips.contacts[index];
+    if (contact && !f.contact) f.anchor.copy(this.local);
+    if (!contact) f.target.copy(this.local);
+    else f.target.copy(f.anchor);
+    f.contact = contact;
+    f.swinging = !contact;
   }
+
   get diagnostics() {
     return {
       phase: wrapPhase(this.phase),
-      source: "KayKit CC0 Walking_A / Running_A + terrain contact IK",
+      source:
+        "CMU full-body human capture 16_15 / 16_35; contact correction IK",
+      state: restTimeState(this.lastRest, this.stopTime, this.run, this.stride),
       acceleration: this.acceleration,
+      handLag: [...this.handLag],
+      fatigueLean: 0.035 * this.stride * (1 - this.run),
       strideBlend: this.stride,
       runBlend: this.run,
       footContacts: this.feet.map((f) => f.contact),
@@ -431,3 +449,21 @@ export class KnightAnimator {
     };
   }
 }
+
+const restTimeState = (
+  rest: number,
+  stop: number,
+  run: number,
+  stride: number,
+) =>
+  rest > 0
+    ? "rest"
+    : stop >= 0
+      ? "stopping"
+      : stride < 0.03
+        ? "idle"
+        : stride < 0.9
+          ? "starting"
+          : run > 0.5
+            ? "running"
+            : "walking";

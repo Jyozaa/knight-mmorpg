@@ -84,7 +84,7 @@ try {
   assert.ok(start.audio.rms > 0.000001);
   await page.screenshot({ path: "test-results/standing.png" });
   await page.screenshot({
-    path: "test-results/lamp-posts.png",
+    path: "test-results/grassy-hillside.png",
     clip: { x: 0, y: 210, width: 430, height: 570 },
   });
   const standing = PNG.sync.read(readFileSync("test-results/standing.png"));
@@ -120,8 +120,18 @@ try {
   assert.equal(start.animation.sword.drawn, false);
   assert.equal(start.animation.sword.mount, "pelvis");
   assert.equal(start.animation.scarf.tips.length, 3);
-  assert.equal(start.lamps.count, 15);
-  assert.match(start.animation.source, /KayKit/);
+  assert.equal(start.animation.scarf.garments.tips.length, 4);
+  assert.ok(start.audio.wind < 0.08);
+  assert.deepEqual(
+    [
+      start.environment.trees,
+      start.environment.lamps,
+      start.environment.shield,
+    ],
+    [0, 0, false],
+  );
+  assert.equal(start.environment.grass.tiles, 729);
+  assert.match(start.animation.source, /CMU full-body/);
   assert.ok(whiteArmor > 2500);
   await wait(180);
   const later = PNG.sync.read(await page.screenshot());
@@ -158,20 +168,21 @@ try {
   await page.mouse.wheel(0, 600);
   await wait(800);
   await page.keyboard.down("w");
-  await wait(2500);
+  await wait(3500);
   await page.screenshot({ path: "test-results/walking.png" });
   const walk = await snapshot();
   assert.ok(walk.position[2] < start.position[2] - 3);
-  assert.ok(walk.speed > 1.5);
+  assert.ok(walk.speed > 1.25);
+  assert.ok(walk.animation.fatigueLean > 0.025);
   await page.keyboard.down("Shift");
   await wait(700);
   await page.screenshot({ path: "test-results/running.png" });
+  const run = await snapshot();
   await page.keyboard.up("w");
   await page.keyboard.up("Shift");
-  const run = await snapshot();
   result.walk = walk;
   result.run = run;
-  assert.ok(run.speed > 4.0);
+  assert.ok(run.speed > 3.3);
   await wait(450);
   assert.ok((await snapshot()).speed < 0.2);
   assert.equal((await snapshot()).restAvailable, true);
@@ -269,7 +280,8 @@ try {
   await page.getByRole("button", { name: "Return to the fields" }).click();
   await wait(6700);
   assert.equal((await snapshot()).screen, "playing");
-  assert.ok(Math.abs((await snapshot()).hipsRotation) < 0.01);
+  assert.ok((await snapshot()).hipsY > 0.95);
+  assert.equal((await snapshot()).animation.state, "idle");
   const still = await snapshot();
   await key("Space", 180);
   await wait(500);

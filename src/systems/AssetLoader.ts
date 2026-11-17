@@ -1,6 +1,6 @@
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
-// Future licensed knight assets can replace the original procedural rig here.
-// The first playable is completely self-contained and makes no asset requests.
+// General GLTF cache for future props. The knight uses the original sculpt GLB
+// via prepareArmor, preserving its neutral joint axes for contact correction.
 export class AssetLoader {
   private loader = new GLTFLoader();
   private cache = new Map<string, Promise<GLTF>>();

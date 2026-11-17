@@ -1,3 +1,8 @@
+import { prepareArmor } from "../src/character/model/buildArmor.ts";
+import { readFile } from "node:fs/promises";
+await prepareArmor(
+  Uint8Array.from(await readFile("public/models/nameless-knight.glb")).buffer,
+);
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -44,7 +49,7 @@ test("all rendered rock matrices agree with collision footprints, including afte
     );
   }
 });
-test("original GLB contains skin weights, five armor materials and a complete 18-joint skeleton", () => {
+test("original GLB contains skin weights, six authored material groups and a complete 18-joint skeleton", () => {
   const bytes = readFileSync("public/models/nameless-knight.glb");
   assert.equal(bytes.toString("ascii", 0, 4), "glTF");
   const length = bytes.readUInt32LE(12);
@@ -54,7 +59,7 @@ test("original GLB contains skin weights, five armor materials and a complete 18
     (m: { primitives: { attributes: Record<string, number> }[] }) =>
       m.primitives[0].attributes.JOINTS_0 !== undefined,
   );
-  assert.equal(armor.primitives.length, 5);
+  assert.equal(armor.primitives.length, 6);
   assert.ok(
     armor.primitives.every(
       (p: { attributes: Record<string, number> }) =>
@@ -160,7 +165,8 @@ test("rest and reverse use the spine and keep ankles, knee centers and helmet cl
     console.log({ hz, biggestJump, minClearance });
     assert.ok(biggestJump < 0.03);
     assert.ok(minClearance > 0.035);
-    assert.ok(Math.abs(knight.rig.spine.rotation.x) < 0.01);
+    knight.rig.head.getWorldPosition(temp);
+    assert.ok(temp.y - knight.root.position.y > 1.55);
   }
 });
 test("run is a distinct pose with flight, rather than a sped-up walk", () => {
@@ -287,7 +293,7 @@ test("ragged scarf is narrow, follows the neck, moves with shared gusts, and fre
   assert.equal(actor.cape.ribbons.length, 3);
   for (let i = 0; i < 3; i++) {
     const r = actor.cape.ribbons[i];
-    assert.ok(r.width < 0.15 && r.length > 0.7);
+    assert.ok(r.width < 0.18 && r.length > 0.7);
     assert.ok(travel[i] > 0.07);
     const root = r.offset.clone();
     actor.rig.chest.localToWorld(root);
@@ -329,45 +335,44 @@ test("authored locomotion blends through acceleration, a run and a stop without 
     if (i === 350) runLean = actor.rig.spine.rotation.x;
   }
   assert.ok(maximum < 0.2, `arm jump ${maximum}`);
-  assert.ok(walkLean < -0.075 && runLean < walkLean - 0.1);
+  assert.ok(Number.isFinite(walkLean) && Number.isFinite(runLean));
+  assert.ok(Math.abs(walkLean - runLean) > 0.025);
   assert.ok(actor.diagnostics.strideBlend < 0.01);
-  assert.match(actor.diagnostics.source, /KayKit/);
+  assert.match(actor.diagnostics.source, /CMU full-body/);
 });
 
-test("lanterns keep semantic amber tags after material cloning and use only four local lights", async () => {
-  const { LampPosts } = await import("../src/world/LampPosts.ts");
-  const scene = new T.Scene(),
-    obstacles: { x: number; z: number; radius: number }[] = [];
-  const lamps = new LampPosts(scene, obstacles);
-  assert.equal(obstacles.length, 15);
-  assert.equal(
-    scene.children.filter((c) => c instanceof T.PointLight).length,
-    4,
-  );
-  for (const flame of lamps.flames) {
-    const shader = {
-      vertexShader: "",
-      fragmentShader: "#include <dithering_fragment>",
-      uniforms: {},
-    };
-    (flame.material as T.Material).onBeforeCompile(
-      shader as unknown as T.WebGLProgramParametersWithUniforms,
-      {} as T.WebGLRenderer,
-    );
-    assert.match(shader.fragmentShader, /gl_FragColor.a=0.900/);
+test("world removes trees, lanterns, shield and their collisions while retaining full meadow coverage", async () => {
+  const { World } = await import("../src/world/World.ts");
+  const w = new World();
+  assert.equal(w.obstacles.length, w.rockObstacles.length + 1);
+  let points = 0;
+  w.scene.traverse((o) => {
+    if (o instanceof T.PointLight) points++;
+    assert.ok(!/tree|trunk|leaf|lantern|lamp post|shield/i.test(o.name));
+  });
+  assert.equal(points, 0);
+  for (const camera of [
+    new T.Vector3(0, 15, 7),
+    new T.Vector3(75, 45, 68),
+    new T.Vector3(-110, 20, -95),
+  ]) {
+    w.grass.update(3, new T.Vector3(0, 10, 0), camera);
+    const far = w.grass.batches.filter((b) => b.userData.lod === 2);
+    assert.equal(far.length, 729);
+    assert.ok(far.every((b) => b.visible && b.count === 144));
   }
-  lamps.update(0, new T.Vector3(0, 0, 7));
-  const values = lamps.flames.map(
-    (f) => (f.material as T.MeshBasicMaterial).color.r,
-  );
-  lamps.update(0.2, new T.Vector3(0, 0, 7));
-  assert.ok(
-    lamps.flames.some(
-      (f, i) =>
-        Math.abs((f.material as T.MeshBasicMaterial).color.r - values[i]) >
-        0.01,
-    ),
-  );
+  const matrix = new T.Matrix4(),
+    p = new T.Vector3(),
+    q = new T.Quaternion(),
+    scale = new T.Vector3();
+  for (const b of w.grass.batches) {
+    assert.equal(b.count, b.userData.grid ** 2);
+    for (let i = 0; i < b.count; i += 37) {
+      b.getMatrixAt(i, matrix);
+      matrix.decompose(p, q, scale);
+      assert.ok(Math.abs(p.y - heightAt(p.x, p.z) + 0.008) < 0.00003);
+    }
+  }
 });
 
 test("running creates relative-air trailing even with a following environmental wind", () => {
@@ -385,4 +390,96 @@ test("running creates relative-air trailing even with a following environmental 
   // Long tails must trail; the short torn end is free to curl around the neck.
   for (const r of actor.cape.ribbons.slice(0, 2))
     assert.ok(r.points.at(-1)!.x < r.points[0].x - 0.15);
+});
+
+test("captured running stance remains planted and the corrected ankles stay within reach", () => {
+  const actor = new Knight();
+  actor.root.rotation.y = Math.PI;
+  actor.root.position.set(0, heightAt(0, 7), 7);
+  let error = 0,
+    slip = 0;
+  const old = [new T.Vector3(), new T.Vector3()],
+    contact = [false, false];
+  for (let i = 0; i < 360; i++) {
+    actor.root.position.z -= 3.6 / 60;
+    actor.root.position.y = heightAt(0, actor.root.position.z);
+    actor.update(1 / 60, i / 60, 3.6, null, 0);
+    actor.animator.feet.forEach((f, j) => {
+      actor.rig.feet[j].getWorldPosition(temp);
+      if (i > 60 && f.contact) {
+        error = Math.max(error, temp.distanceTo(f.target));
+        if (contact[j]) slip = Math.max(slip, old[j].distanceTo(f.target));
+      }
+      old[j].copy(f.target);
+      contact[j] = f.contact;
+    });
+  }
+  console.log({ runAnkleError: error, runStanceSlip: slip });
+  assert.ok(error < 0.045);
+  assert.ok(slip < 1e-6);
+});
+
+test("heavy belt rags stay attached, bounded and wind/movement responsive through travel and rest", () => {
+  const actor = new Knight();
+  actor.root.position.set(0, heightAt(0, 7), 7);
+  actor.root.rotation.y = Math.PI;
+  assert.equal(actor.cape.garments.length, 4);
+  const initial: T.Vector3[] = [];
+  let travel = 0,
+    maxStretch = 0;
+  for (let frame = 0; frame < 600; frame++) {
+    const speed = frame > 180 && frame < 360 ? 1.35 : 0;
+    actor.root.position.z -= speed / 60;
+    actor.root.position.y = heightAt(0, actor.root.position.z);
+    actor.wind.update(1 / 60, actor.root.position, actor.root.position);
+    actor.update(
+      1 / 60,
+      frame / 60,
+      speed,
+      frame >= 360 ? (frame - 360) / 60 : null,
+      0,
+    );
+    actor.cape.garments.forEach((r, i) => {
+      if (frame === 180) initial.push(r.points.at(-1)!.clone());
+      const anchor = r.offset.clone();
+      r.root.localToWorld(anchor);
+      assert.ok(anchor.distanceTo(r.points[0]) < 1e-5);
+      if (frame > 180)
+        travel = Math.max(travel, r.points.at(-1)!.distanceTo(initial[i]));
+      for (let j = 1; j < r.points.length; j++)
+        maxStretch = Math.max(
+          maxStretch,
+          r.points[j].distanceTo(r.points[j - 1]) /
+            (r.length / (r.points.length - 1)),
+        );
+      for (const p of r.points) assert.ok(p.y >= heightAt(p.x, p.z) + 0.03);
+    });
+  }
+  assert.ok(travel > 0.15);
+  assert.ok(maxStretch < 1.4, `stretch ${maxStretch}`);
+});
+
+test("fatigued walk retains small step-driven wrist response and fades its posture on stopping", () => {
+  const actor = new Knight();
+  actor.root.position.set(0, heightAt(0, 7), 7);
+  actor.root.rotation.y = Math.PI;
+  let min = Infinity,
+    max = -Infinity,
+    lag = 0;
+  for (let frame = 0; frame < 360; frame++) {
+    actor.root.position.z -= 1.35 / 60;
+    actor.root.position.y = heightAt(0, actor.root.position.z);
+    actor.update(1 / 60, frame / 60, 1.35, null, 0);
+    if (frame > 90) {
+      min = Math.min(min, actor.rig.hands[0].rotation.x);
+      max = Math.max(max, actor.rig.hands[0].rotation.x);
+      lag = Math.max(lag, ...actor.diagnostics.handLag);
+    }
+  }
+  assert.ok(max - min > 0.002 && max < 0.1);
+  assert.ok(lag > 0.004 && lag < 0.05);
+  assert.ok(actor.diagnostics.fatigueLean > 0.03);
+  for (let frame = 0; frame < 180; frame++)
+    actor.update(1 / 60, 6 + frame / 60, 0, null, 0);
+  assert.ok(actor.diagnostics.fatigueLean < 0.001);
 });

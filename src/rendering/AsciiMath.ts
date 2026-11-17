@@ -2,7 +2,7 @@
 export const BLACK_LEVEL = 0.004;
 export const HISTORY_DEADBAND = 0.012;
 export const HISTORY_DEPTH_TOLERANCE = 0.035;
-export const GLYPH_LEVELS = 24;
+export const GLYPH_LEVELS = 8;
 export function mapLuminance(luminance: number) {
   return 1 - Math.exp(-Math.max(0, luminance - BLACK_LEVEL) * 2.4);
 }

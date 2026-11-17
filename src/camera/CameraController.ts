@@ -11,7 +11,7 @@ export class CameraController {
   yaw = 0;
   pitch = 0.26;
   distance = 4.8;
-  private zoomDistance = 4.5;
+  private zoomDistance = 3.8;
   private target = new T.Vector3();
   private desired = new T.Vector3();
   private look = new T.Vector3();
@@ -40,11 +40,11 @@ export class CameraController {
     const yaw = menu ? -0.55 + Math.sin(time * 0.06) * 0.08 : this.yaw;
     this.distance = damp(
       this.distance,
-      this.zoomDistance + Math.min(1, speed / 4.4) * 0.36,
+      this.zoomDistance + Math.min(1, speed / 3.6) * 0.2,
       2.5,
       dt,
     );
-    const distance = menu ? 3.7 : this.distance;
+    const distance = menu ? 3.1 : this.distance;
     this.desired.set(
       position.x + Math.sin(yaw) * distance,
       position.y + 1.1 + Math.sin(this.pitch) * distance,
@@ -94,7 +94,7 @@ export class CameraController {
     this.camera.lookAt(this.target);
     this.camera.fov = damp(
       this.camera.fov,
-      menu ? 42 : 44 + Math.min(1, speed / 4.4) * 1.5,
+      menu ? 41 : 42 + Math.min(1, speed / 3.6) * 1.5,
       3,
       dt,
     );

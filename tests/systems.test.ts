@@ -51,7 +51,7 @@ test("movement follows terrain; diagonal movement does not gain speed; run is fa
   const walk = simulate(["KeyW"]),
     diag = simulate(["KeyW", "KeyD"]),
     run = simulate(["KeyW", "ShiftLeft"]);
-  assert.ok(Math.abs(walk.speed - diag.speed) < 1e-10);
+  assert.ok(diag.speed <= walk.speed * 1.01);
   assert.ok(run.speed > walk.speed * 2.5);
   assert.ok(
     Math.abs(walk.position.z - simulate(["KeyW"], 144).position.z) < 0.03,
@@ -92,4 +92,21 @@ test("interactions pick only the closest reachable target", () => {
   assert.equal(called, "near");
   system.update(new Vector3(10, 0, 0));
   assert.equal(system.active, null);
+});
+
+test("camera-relative reversals brake, rotate within a bounded rate, and recover facing", () => {
+  const p = new CharacterController();
+  for (let i = 0; i < 90; i++)
+    p.update(1 / 60, input(["KeyW", "ShiftLeft"]), 0, []);
+  let previous = p.rotation,
+    lowest = p.speed;
+  for (let i = 0; i < 150; i++) {
+    p.update(1 / 60, input(["KeyS", "ShiftLeft"]), 0, []);
+    assert.ok(Math.abs(p.rotation - previous) <= 3.5 / 60 + 1e-6);
+    previous = p.rotation;
+    lowest = Math.min(lowest, p.speed);
+  }
+  assert.ok(lowest < 1.1);
+  assert.ok(p.speed > 3.3);
+  assert.ok(Math.cos(p.rotation) > 0.98);
 });

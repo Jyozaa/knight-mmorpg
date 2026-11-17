@@ -1,7 +1,6 @@
 import * as T from "three";
-import { heightAt, terrainMaterial, type Obstacle } from "./terrain";
+import { heightAt, type Obstacle } from "./terrain";
 import { random } from "../config";
-import { LampPosts } from "./LampPosts";
 import { Grass } from "./Grass";
 import { WindSystem } from "../environment/WindSystem";
 import { populateRocks } from "./rockPlacement";
@@ -10,7 +9,6 @@ export class World {
   readonly obstacles: Obstacle[] = [];
   readonly rest = new T.Vector3(0, heightAt(0, -3), -3);
   readonly grass: Grass;
-  readonly lamps: LampPosts;
   readonly rocks: T.InstancedMesh;
   readonly rockObstacles: Obstacle[] = [];
   private keyLight: T.DirectionalLight;
@@ -49,8 +47,7 @@ export class World {
         z = pos.getZ(i);
       const y = heightAt(x, z);
       pos.setY(i, y);
-      const path = terrainMaterial(x, z) === "stone";
-      c.set(path ? "#080908" : "#020302");
+      c.set("#020302");
       const shade =
         0.75 +
         0.22 * Math.sin(x * 0.34) * Math.cos(z * 0.31) +
@@ -67,9 +64,7 @@ export class World {
     ground.receiveShadow = true;
     scene.add(ground);
     const rng = random(9218);
-    const dummy = new T.Object3D();
     this.grass = new Grass(scene, wind);
-    this.lamps = new LampPosts(scene, this.obstacles);
     const rockGeo = new T.DodecahedronGeometry(1, 0),
       rockMat = new T.MeshStandardMaterial({
         color: "#303330",
@@ -83,42 +78,6 @@ export class World {
     rocks.castShadow = true;
     rocks.receiveShadow = true;
     scene.add(rocks);
-    const trunks = new T.InstancedMesh(
-      new T.CylinderGeometry(0.22, 0.4, 4, 5),
-      new T.MeshStandardMaterial({ color: "#171b18" }),
-      180,
-    );
-    const leaves = new T.InstancedMesh(
-      new T.ConeGeometry(2.8, 8, 7),
-      new T.MeshStandardMaterial({ color: "#101510", flatShading: true }),
-      540,
-    );
-    for (let i = 0; i < 180; i++) {
-      const a = rng() * Math.PI * 2,
-        r = 38 + rng() * 120,
-        x = Math.cos(a) * r,
-        z = Math.sin(a) * r - 25,
-        s = 0.5 + rng();
-      dummy.position.set(x, heightAt(x, z) + 2 * s, z);
-      dummy.rotation.set(0, rng() * 6, 0);
-      dummy.scale.setScalar(s);
-      dummy.updateMatrix();
-      trunks.setMatrixAt(i, dummy.matrix);
-      for (let j = 0; j < 3; j++) {
-        dummy.position.y = heightAt(x, z) + (4 + j * 1.9) * s;
-        dummy.scale.set(
-          s * (1 - j * 0.18),
-          s * (1 - j * 0.15),
-          s * (1 - j * 0.18),
-        );
-        dummy.updateMatrix();
-        leaves.setMatrixAt(i * 3 + j, dummy.matrix);
-      }
-      this.obstacles.push({ x, z, radius: 0.45 * s, height: 11 * s });
-    }
-    trunks.castShadow = true;
-    leaves.castShadow = true;
-    scene.add(trunks, leaves);
     // Distant silhouettes are actual geometry and remain visible in the pullback.
     for (let i = 0; i < 24; i++) {
       const a = (i / 24) * Math.PI * 2,
@@ -237,7 +196,6 @@ export class World {
   }
   update(time: number, actor: T.Vector3, camera: T.Vector3) {
     this.grass.update(time, actor, camera);
-    this.lamps.update(time, actor);
     // Keep the lit hill readable during the long pullback while the valley still falls into black.
     (this.scene.fog as T.FogExp2).density =
       0.034 / (1 + camera.distanceTo(actor) * 0.025);

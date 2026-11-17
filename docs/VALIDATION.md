@@ -1,46 +1,65 @@
-# Validation — v0.4
+# Validation — v0.5
 
-Validated on 17 November 2026, macOS, Node.js 26.8.1, Google Chrome and the production Vite preview at 1440 × 900. Inspected the new `references/knight_ref.png` and renewed frames from the original knight video. No reference media is committed.
+Validated on 17 November 2026 with macOS, Chrome, Node.js 26.8.1 and the production Vite preview. The primary `knight.mp4`, matching image, prior references, v0.4 captures and separate CMU human performance footage were inspected directly.
 
-## Results
+## Technical verification
 
-- `npm run typecheck`, `npm run lint`, `npm run format:check`, **28 unit/system tests**, and `npm run build`: passed.
-- Final production browser test: passed with **zero page/console errors**. Real inputs verify walk/run/deceleration, evade, orbit/zoom/pointer lock, menus/settings, fullscreen, resizing, audio unlock, pause/resume, rest/get-up and the complete 55-second cinematic.
-- Added tests cover sheathed sword parentage and ground clearance through rest, scarf neck attachment/length bounds/ground contact/wind motion/pause, relative-air trailing of the long tails, authored walk/run/start/stop blending, and lantern semantic material tags/four-light budget. The lantern test catches the material-clone hook loss found during visual review.
-- Existing stance tests measure zero target drift during walking contact and negligible ankle/target error on the sampled slope. Rest/reverse clearance remains checked at 30/60/144 Hz. These numerical checks supplement motion review; they do not prove realistic animation.
-- Regenerated original GLB: 3.56 MiB, approximately 108,000 armor triangles, five armor material groups, 18 bones and separate scarf/sword/scabbard geometry. Blender 5.2 imported one armature with all 18 bones and 27 mesh objects.
-- Production application chunk: approximately 133 kB / 43 kB gzip, plus Three.js at 539 kB / 141 kB gzip. The existing non-blocking Vite 500 kB engine-chunk advisory remains.
+- TypeScript, ESLint, Prettier, **33 unit/system tests**, production build and production browser validation pass.
+- Browser checks exercise menus/settings, pointer lock, camera drag/zoom, walk/run/deceleration, evade, audio unlock, pause/resume, sitting/lying, the full 55-second pullback, get-up, fullscreen, responsive menus and persisted settings. Final reported page/console errors: **zero**.
+- New tests verify removal of trees/lantern lights/collisions, complete per-stratum grass population, permanent far coverage from several camera positions, terrain-aligned roots, bounded reversal rate, full-body transitions, sword attachment/clearance, scarf wind/contact behavior and pause. Existing footfall/audio and rest/reverse checks remain.
+- Walking and running stance targets show **zero measured anchor drift** in sampled terrain traversal. Walking ankle error is about **1.5 cm** on the tested slope; running has its own reach/stance check. Rest/reverse is exercised at 30/60/144 Hz. Such checks accompany visual review; they do not certify realistic movement.
+- The actual Blender-authored runtime asset contains **92,008 triangles, 18 bones and six material groups**, approximately **3.3 MiB**. Original editable `.blend` and reproducible authoring source are included.
+- Production chunks are approximately **78 kB application**, **452 kB motion curves**, and **519 kB Three.js** (about 28/155/134 kB gzip). Vite retains the non-blocking engine-chunk size advisory.
 
-## Motion and visual review
+## Visual and motion review
 
-[Repository gameplay preview](previews/v04-gameplay.mp4): 29.8 seconds, 1152 × 720, 24 FPS H.264, approximately 6.3 MiB. It contains actual side-view walking/running, moving turns, stopping, shared-wind scarf/grass, equipment/lamps and the sit/lie/wide sequence. Cuts omit travel back to the waystone and the middle of the long pullback; included shots retain real-time speed. The recording is silent; sound controls are verified separately below. Raw 90-second recording and earlier review passes remain ignored.
+[Gameplay preview with audio](previews/v05-gameplay.mp4) contains uninterrupted walking and running, direction changes, scarf/grass motion, equipment and the cinematic. It is a variable-rate native canvas capture requested at 60 Hz, exported at 1152 × 720 with H.264/AAC. Included segments retain their original speed. The raw recording stays ignored.
 
-Reviewed successive frames from actual gameplay recordings, including a gait-cycle contact sheet and the final compressed edit. The profile view exposes separate knee recovery, support/flight, lumbar lean, shoulder/elbow movement and hip compression. The walk/run no longer share the old rigid sword-carrying arm pose. Idle-to-travel, run turns and settling were inspected as sequences, alongside the numerical foot-contact checks.
+Successive frames from several full gait cycles were compared with the actual CMU performer. The walk shows alternating support, recovery, coordinated shoulders and pelvis; running uses a different human performance with push-off, flight and landing compression. Source joint curves include the legs and feet. The correction layer locks contact rather than replacing the performance with a generated swing arc. Starts remain controlled crossfades into those curves, rather than separately captured start takes. Tight pivots and aggressive interruptions can still be refined.
 
-Visual review prompted fixes to interpolated lamp-tag speckles, lost amber shader tags after material cloning, fractional glyph indices, scarf root/body constraint interference, excessive following-wind scarf lead, and reversed heel/toe pitch. The final scarf exposes the armor, long tails trail under running, the short torn end can curl independently, grass visibly bends, and lamp flames retain amber through the ASCII reconstruction. The knight remains a few silver glyphs at the extreme wide endpoint.
+Raw Blender rendering was reviewed before ASCII. The reference comparison identifies concrete changes: sloped helmet/aperture, cheek/bevor shapes, overlapping lames, fitted chest/back/waist, articulated fingers/legs, folded torn wool and continuous grass. The private comparison sheets contain original reference pixels and are kept outside Git. See [reference study](VISUAL_REFERENCES.md).
 
-Final standing measurement: **93.3% near-black** in the sampled world region; **14,591 bright silver** and **4,380 red scarf** pixels in the central guard region. Approximately **2.49%** of pixels changed substantially between nearby idle captures. These are coarse readability/crawling guards, not artistic scores or proof of perfect temporal stability.
+| View                 | Capture                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| Front close-up       | [Front](screenshots/front-closeup.webp)                                |
+| Side close-up        | [Side](screenshots/side-closeup.webp)                                  |
+| Back                 | [Back](screenshots/back.webp)                                          |
+| Armor detail         | [Armor](screenshots/armor-details.webp)                                |
+| Dense grass close-up | [Grass](screenshots/grass-closeup.webp)                                |
+| Grassy hillside      | [Hillside](screenshots/grassy-hillside.webp)                           |
+| Walking              | [Walk](screenshots/walking.webp)                                       |
+| Running              | [Run](screenshots/running.webp)                                        |
+| Turning              | [Turn](screenshots/turning.webp)                                       |
+| Torn scarf           | [Scarf](screenshots/ragged-scarf.webp)                                 |
+| Weighted waist rags  | [Waist cloth](screenshots/ragged-waist.webp)                           |
+| Sheathed sword       | [Sword](screenshots/sheathed-sword.webp)                               |
+| Sitting / lying      | [Sitting](screenshots/sitting.webp), [lying](screenshots/resting.webp) |
+| Wide pullback        | [Wide](screenshots/panorama.webp)                                      |
 
-| Requested view         | Capture                                     |
-| ---------------------- | ------------------------------------------- |
-| Standing               | [Standing](screenshots/standing.webp)       |
-| Walking, side view     | [Walking](screenshots/walking.webp)         |
-| Running, side view     | [Running](screenshots/running.webp)         |
-| Armor and closed visor | [Portrait](screenshots/knight-closeup.webp) |
-| Sheathed sword         | [Scabbard](screenshots/sheathed-sword.webp) |
-| Torn crimson scarf     | [Scarf](screenshots/ragged-scarf.webp)      |
-| Tall grass             | [Grass](screenshots/grass-closeup.webp)     |
-| Medieval lamp post     | [Lantern](screenshots/lamp-posts.webp)      |
-| Sitting                | [Sitting](screenshots/sitting.webp)         |
-| Lying                  | [Resting](screenshots/resting.webp)         |
-| Wide cinematic         | [Panorama](screenshots/panorama.webp)       |
+The standing world-region guard measured **89.6% near-black** despite much denser grass, with **15,819 bright silver** and **6,316 red cloth** pixels in the central guard region. Approximately **7.11%** of pixels changed substantially between nearby idle captures, including actual strong grass/scarf motion. This is a coarse guard against gross crawling, not an artistic score or isolation of temporal noise.
 
-## Shared wind and audio
+## Wind and sound
 
-The same WindSystem instance drives GPU grass, CPU scarf forces and audio targets. Four GPU sampler positions agree with the CPU field within **0.00284**, within framebuffer quantization tolerance. The 220-sample live Web Audio trace gives correlations of **0.9955 gust → audible gain**, **0.9990 gain target → actual**, **0.9990 cutoff target → actual**, and **0.9993 rustle target → actual**. Wind time and scarf nodes freeze with simulation pause. No independent random wind envelope was introduced.
+The same WindSystem drives GPU grass/wool, CPU scarf and audible wind/rustle. GPU/CPU field samples agree within **0.00284**. A 220-sample live Web Audio trace gives approximately **0.9918 gust → audible gain**, **0.9989 gain target → actual**, **0.9989 filter target → actual**, **0.9993 rustle target → actual**. Wind and cloth time freeze on pause.
 
-## Performance and remaining limits
+The preview records the real master bus, not a separate soundtrack. The exported audio is non-silent and unclipped; sample measurements are listed with the final export below. These signal/control checks are not a claim of finished field-recording sound design.
 
-Final browser walk, run and wide samples each reported **60 FPS** at fine density (503 × 196 cells), 0.5 scene scale. The separate review recording uses 0.8 scene scale. CPU animation measured about **0.22 ms**, camera about **0.02 ms**; sampled GPU scene cost ranged roughly **0.8–2.0 ms**, ASCII **0.5–1.0 ms**, isolated grass around **1.2 ms** across review runs. Grass is already part of the scene; isolated samples occur at different instants and are not an extra additive cost. These are machine-specific samples, not a universal 60 FPS guarantee.
+## Performance and limitations
 
-Locomotion is hybrid adapted stylized authored motion plus procedural contact legs, rather than human mocap. Tight 180-degree pivots, extreme slopes and dedicated start/stop/turn clips can still improve. Scarf uses a small constrained ribbon solver with torso/terrain exclusion; it has no full self-collision, helmet/pauldron collision mesh or aerodynamic model. It may brush armor during abrupt changes. Tiny distant grass and moving plates can still alias because history lacks per-object motion vectors. The original procedural armor remains more regular than the supplied artwork. Audio is synthesized. No later story content was added.
+Production browser walk/run/wide samples reported **60 FPS** at 503 × 196 cells, 0.5 scene scale. The native review capture uses 0.8 scene scale. Sampled CPU animation/camera cost was approximately **0.43/0.03 ms**, scene submission **1.06 ms**. Asynchronous GPU samples reported scene **1.51 ms**, isolated grass **2.07 ms**, ASCII **0.45 ms**. Isolated grass and scene timers sample different frames/passes and are not directly comparable or additive. These are machine-specific samples, not a universal guarantee.
+
+Coverage uses 729 tiles over 432 m with overlapping detailed/middle/coarse representations. The far representation is retained rather than distance-deleted. Grass is still geometry and can naturally be occluded by rocks or the knight; fine distant blades can alias. The generated terrain ends beyond the traversable region and far scenery remains subtle.
+
+The reference remains more bespoke and ornamental. Starts/pivots can benefit from dedicated capture/matching. The resting timeline remains procedural. Scarf uses animated collision proxies rather than full mesh/self-collision; lower wool has restrained shader motion. Extreme terrain or abrupt equipment/cloth interactions still merit refinement. No new story content was added.
+
+## Final capture statistics
+
+The final native recording contains **5,038 video frames over 104.505 seconds**, approximately **48.21 FPS**. Its uninterrupted walk segment spans **9.116 seconds / 442 frames (48.49 FPS)** and run segment **7.627 seconds / 362 frames (47.46 FPS)**. The stream was requested at 60 Hz; these are measured source timestamps, not interpolated output. The game snapshot reported 60 FPS and zero capture-page errors, but the recorder delivered fewer frames; the preview is not a verified 60 FPS recording. The capture snapshot measured approximately 0.42 ms CPU animation, 0.01 ms camera and 1.05 ms scene submission. The compressed edit retains the same timing and live audio.
+
+Final review edit: **44.63 seconds, 2,163 frames**, requested 60 Hz / approximately **48.44 FPS** variable-rate, **1152 × 720**, H.264 video and AAC audio, **23.42 MiB**. Audio measures approximately **−42.4 dB mean / −18.2 dB peak**, with no clipping. Export keeps original timestamps and does not generate intermediate frames. The older v0.4 preview was retired from the current tree; it remains in Git history.
+
+## Continuation — quiet wind and restrained secondary motion
+
+The requested continuation keeps the authored v0.5 foundation and captured leg performance. A walk-only fatigue layer adds a restrained forward bias, support-side shoulder/torso response and small damped wrist impulses from real foot contacts. Four short belt/hip rags reuse the scarf solver with more weight, lower wind response, tangent-aligned widths and hip/thigh contact. Grass gains continuous recovery sway and patch variation; wind/rustle targets are substantially quieter with gentler filtering. Added tests verify wrist response/fade, rag attachment/strain/terrain contact through travel and rest, and reduced wind levels while preserving correlation.
+
+Independent finger motion is not available in this 18-joint rig; hands respond at the wrist. Cloth uses simplified contact proxies and length constraints rather than full fabric self-collision. Audio gain/filter changes are measured and recorded; subjective loudness balance remains a listening judgment.

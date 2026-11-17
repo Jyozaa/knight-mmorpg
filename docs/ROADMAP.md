@@ -24,9 +24,13 @@ Rounded closed helmet, domed layered pauldrons, procedural steel wear, long crim
 
 Retargeted CC0 authored idle/walk/run upper-body curves blended with terrain IK, acceleration/turning posture and contact-controlled legs. Sword moved from hand to a separate hip scabbard. Three narrow torn scarf ribbons use shared-wind forces and fixed-step constrained simulation. Taller grass bends strongly in traveling gusts, with more pronounced field-driven audio. Fifteen medieval lantern posts and four nearby warm lights reinforce the hillside. Repository review video and eleven screenshot views accompany browser/system verification.
 
-## Recommended next art milestone
+## Complete — 0.5 authored armor, continuous meadow and human capture
 
-Commission human-proportioned start/stop/turn/sit/lie/get-up clips against the original exported rig. Retain terrain constraints, refine extreme pivots/steep-slope contact, and improve scarf self-collision and helmet/shoulder interaction. Continue testing small-scale grass aliasing and silhouette readability across GPUs before expanding the story.
+Original Blender-authored armor replaces the former runtime suit: recessed sallet, overlapping lames, shaped torso/limbs, finger/boot articulation and tattered folded wool. The rigged GLB is the actual runtime asset. Full-body CMU human capture replaces KayKit/procedural moving leg arcs, with calibrated stride, braking/turn layers and supporting IK. Starts crossfade into the full performance under controlled acceleration. The landscape has continuous overlapping grass representations; all trees, lamps, shield geometry and corresponding collisions are removed. Layered scarf wraps and helmet/shoulder/torso proxies refine cloth contact. Review captures include uninterrupted side-view cycles and live recorded audio.
+
+## Further polish within this scene
+
+Dedicated captured start/stop matching and planted 180-degree pivot clips could improve the current transition graph. Refine cloth self-collision and plate contact on extreme poses, custom engraved forms, thin-blade temporal reconstruction, and silhouette readability across GPUs. These are further art/animation refinements before story expansion.
 
 ## Later story work — not implemented
 

@@ -3,6 +3,15 @@ import type { Settings } from "../config";
 import type { Vector3 } from "three";
 export class AudioManager {
   private ctx: AudioContext | null = null;
+  private recordingBus: MediaStreamAudioDestinationNode | null = null;
+  captureStream() {
+    if (!this.ctx || !this.buses.master) return null;
+    if (!this.recordingBus) {
+      this.recordingBus = this.ctx.createMediaStreamDestination();
+      this.buses.master.connect(this.recordingBus);
+    }
+    return this.recordingBus.stream;
+  }
   private buses = {} as Record<
     "master" | "ambience" | "sfx" | "music" | "cinematic",
     GainNode

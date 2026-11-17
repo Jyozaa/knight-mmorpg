@@ -1,38 +1,43 @@
-# Assets and provenance
+# Assets and provenance — v0.5
 
-Character/world geometry, armor details, scarf, scabbard, lanterns, glyph atlas, procedural steel wear, UI and synthesized sounds are original project work. The three locomotion motion sources below are the only external character content used in v0.4. No third-party character mesh or reference artwork is shipped.
+## Original armor and environment
 
-## Original knight and equipment
+The armor mesh is original project-authored geometry, substantially rebuilt in Blender for v0.5. It does not contain a reference image, reference-derived texture, borrowed character mesh or video frames.
 
-- Source: `src/character/model/buildArmor.ts`, `armorGeometry.ts`, `SheathedSword.ts` and `Cape.ts` (the last retains its legacy filename but now implements a narrow scarf).
-- Export: `public/models/nameless-knight.glb`, approximately 3.6 MiB, one original armor skin, 18 bones, five armor material groups, scarf and separately mounted sword/scabbard geometry.
-- Regenerate with `npm run export:knight`. Runtime uses the same builder. The GLB contains a bind pose, not the runtime contact solver, motion clips or scarf simulation.
-- `?knight=prototype` selects the preserved initial primitive model.
+- Editable source: `assets/nameless-knight.blend`.
+- Reproducible modeling source: `scripts/author-knight.py` (Blender 5.2).
+- Runtime asset: `public/models/nameless-knight.glb`, about 3.3 MiB, 92,008 triangles, 18 neutral-axis bones and six material groups.
+- The Blender workflow constructs individual shaped and solidified plate surfaces, bevelled boundaries, curved seams, discrete articulation, recessed dark structure and curved torn lower cloth. It exports evaluated geometry and weights, with indexed hard-normal seams. A custom GLB writer preserves the original runtime joint convention rather than introducing Blender bone-roll offsets into the IK solver.
+- `prepareArmor` loads this actual GLB; the game does not rebuild the old primitive suit. Scarf, four weighted torn belt/hip strips and sheathed sword remain original runtime geometry attached to the asset's joints.
 
-## Authored locomotion — KayKit, CC0
+Grass geometry/distribution, scenery, glyph atlas, steel weathering and synthesized audio are original project work. The unused tree, lamp and shield implementations have been removed.
 
-Kay Lousberg's **KayKit Adventurers Character Pack 1.0** (13 March 2023) contains the authored `Idle`, `Walking_A` and `Running_A` motions used here. The official source archive explicitly licenses this content under Creative Commons Zero. The complete supplied license is retained in [KayKit-CC0.txt](../public/licenses/KayKit-CC0.txt).
+## Human motion — CMU Graphics Lab
 
-Official source: [KayKit GitHub repository](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0), specifically `addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb`. Upstream revision: `672074b73ba276876a19e8816ecdc5241817ab47`. The source model is used only offline as a motion carrier, and is not included in this project.
+Full-body performances from subject 16 replace the former KayKit curves:
 
-`scripts/retarget-locomotion.ts` reads that official GLB, samples the three clips, converts its bind axes/facing, retargets arm directions, reduces the stylized arm flare and recenters its carried-arm stance to free human arms. The resulting compact curves are in `src/character/animation/clips/locomotion.json`. No textures or source mesh data are included. To regenerate, download the official GLB and run:
+| Take  | Use                                   |
+| ----- | ------------------------------------- |
+| 16_15 | Straight walking cycle                |
+| 16_35 | Running cycle                         |
+| 16_17 | Coordinated curved-walking/turn layer |
+| 16_08 | Run braking and settled idle pose     |
+| 16_33 | Walking braking                       |
 
-```sh
-npx tsx scripts/retarget-locomotion.ts /path/to/KayKit/Knight.glb
-npm run format
-```
+[Official subject listing](https://mocap.cs.cmu.edu/search.php?subjectnumber=16), [use terms](https://mocap.cs.cmu.edu/), [redistribution FAQ](https://mocap.cs.cmu.edu/faqs.php). The permission allows incorporation into products and redistribution/modification, but prohibits reselling the motion data itself. **It is not CC0.** See [CMU-MOCAP.md](../public/licenses/CMU-MOCAP.md).
 
-The runtime blends these authored upper-body/hip curves with project-authored forward lean, acceleration, turning, contact trajectories, IK and rest motion. These are adapted stylized animation clips, **not human motion capture**. Credit to Kay Lousberg is included voluntarily; CC0 does not require attribution.
+The database acknowledgment is included in the bundled motion provenance note.
 
-## References and review media
+`retarget-locomotion.ts` reads `16.asf` and the five named AMC files, resolves ASF joint axes and forward kinematics, removes the take's travel heading, transfers all body/arm/leg/foot rotations onto the original rig, calibrates root travel and chooses matched cycle boundaries. Contact classification and stride metadata accompany the retargeted curves. Runtime IK supports this full-body motion; it no longer invents the moving swing trajectory. Toe/finger motion is deliberately restrained because those CMU channels are not directly captured reliably.
 
-The user-supplied originals, `references/knight.png` and the new primary benchmark `references/knight_ref.png` remain local and ignored. None of their pixels, geometry, sound or pose sequences is redistributed.
+Only game-specific derived curves in `src/character/animation/clips/locomotion.json` are included. Raw database files and the source performance movies remain outside Git. Original starts are controlled full-body transition blends, rather than separately captured start clips; this distinction is explicit in the architecture and validation notes.
 
-`docs/screenshots/` and `docs/previews/v04-gameplay.mp4` are captures of this real-time game. The MP4 is a compressed review edit, never used in rendering. Full raw Playwright recordings and temporary study frames remain ignored under `test-results/` or outside the repository.
+## References and review material
 
-## Fonts and audio
+`references/knight.mp4` is the primary art/environment benchmark. It was inspected at multiple timestamps alongside `knight_ref.png`, the earlier ASCII knight video, hourglass and Crawlpedia media. It shows a posed character with cloth/grass movement, not a walking/running performance. Official CMU human performance movies were examined separately for gait.
 
-- Cormorant Garamond Regular — Cormorant Project Authors, SIL OFL 1.1; complete license in `public/fonts/Cormorant-OFL.txt`. [Upstream](https://github.com/google/fonts/tree/main/ofl/cormorantgaramond).
-- Manrope Regular — Manrope Project Authors, SIL OFL 1.1; complete license in `public/fonts/Manrope-OFL.txt`. [Upstream](https://github.com/google/fonts/tree/main/ofl/manrope).
+Reference files and internal reference-versus-game contact sheets stay local and ignored. No original reference media is redistributed. Committed screenshots and `docs/previews/v05-gameplay.mp4` depict this game. The preview includes the real synthesized game audio and is never used by the renderer.
 
-Fonts are local. AudioManager synthesizes wind/rustle, surface footsteps, armor ticks, breathing, birds, bells and drone tones. Shared WindSystem samples drive wind/rustle gain and filters; they remain procedural sound carriers rather than field recordings. Dependency licenses remain in their installed packages.
+## Fonts and sound
+
+Cormorant Garamond and Manrope remain locally bundled under SIL OFL 1.1, with their complete licenses in `public/fonts/`. Dependency licenses remain in installed packages. AudioManager synthesizes wind/rustle, stance-triggered boots, armor ticks, breathing, birds, bells and sparse drone tones. Shared spatial wind drives the audible gain/filter envelopes; these are synthesized carriers, not field recordings or commercial music.

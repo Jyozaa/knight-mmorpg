@@ -5,7 +5,6 @@ import { readSettings } from "./config";
 import { AsciiRenderer } from "./rendering/AsciiRenderer";
 import { World } from "./world/World";
 import { Knight } from "./character/Knight";
-import { PrototypeKnight } from "./character/PrototypeKnight";
 import { CharacterController } from "./character/CharacterController";
 import { CameraController } from "./camera/CameraController";
 import { CinematicSystem } from "./cinematic/CinematicSystem";
@@ -16,16 +15,16 @@ import { QuestProgression } from "./systems/QuestProgression";
 import { terrainMaterial } from "./world/terrain";
 import { UI, type Screen } from "./ui/UI";
 
-function boot() {
+import { prepareArmor } from "./character/model/buildArmor";
+
+async function boot() {
+  await prepareArmor();
   const settings = readSettings(),
     ui = new UI(settings);
   const wind = new WindSystem();
   const renderer = new AsciiRenderer(ui.viewport, settings),
     world = new World(wind),
-    knight =
-      new URLSearchParams(location.search).get("knight") === "prototype"
-        ? new PrototypeKnight()
-        : new Knight(wind),
+    knight = new Knight(wind),
     player = new CharacterController();
   world.scene.add(knight.root);
   knight.root.position.copy(player.position);
@@ -182,7 +181,7 @@ function boot() {
         Math.sin(targetYaw - visualYaw),
         Math.cos(targetYaw - visualYaw),
       );
-      visualYaw += yawDelta * (1 - Math.exp(-7 * dt));
+      visualYaw += yawDelta * (1 - Math.exp(-14 * dt));
       knight.root.rotation.y = visualYaw;
       camera.camera.getWorldDirection(forward);
       wind.update(dt, player.position, camera.camera.position, forward);
@@ -212,7 +211,7 @@ function boot() {
           screen === "cinematic" ? cinematic.time : null,
           camera.camera.position,
           forward,
-          knight instanceof Knight ? knight.consumeFootfalls() : -1,
+          knight.consumeFootfalls(),
         );
       }
     }
@@ -238,6 +237,13 @@ function boot() {
   ) {
     Object.defineProperty(window, "__lastBell", {
       value: {
+        captureStream: () => {
+          const stream = renderer.renderer.domElement.captureStream(60),
+            sound = audio.captureStream();
+          for (const track of sound?.getAudioTracks() ?? [])
+            stream.addTrack(track);
+          return stream;
+        },
         snapshot: () => ({
           screen,
           position: player.position.toArray(),
@@ -249,10 +255,8 @@ function boot() {
           hipsY: knight.hips.position.y,
           hipsRotation: knight.hips.rotation.x,
           chestRotation:
-            knight instanceof Knight
-              ? knight.rig.spine.rotation.x + knight.rig.chest.rotation.x
-              : knight.hips.rotation.x,
-          animation: knight instanceof Knight ? knight.diagnostics : null,
+            knight.rig.spine.rotation.x + knight.rig.chest.rotation.x,
+          animation: knight.diagnostics,
           performance: {
             animationCpuMs,
             cameraCpuMs,
@@ -272,12 +276,14 @@ function boot() {
           audioContextState: audio.contextState,
           audio: audio.diagnostics,
           wind: wind.diagnostics,
-          lamps: {
-            count: world.lamps.positions.length,
-            positions: world.lamps.positions.map((p) => p.toArray()),
+          environment: {
+            trees: 0,
+            lamps: 0,
+            shield: false,
+            obstacles: world.obstacles.length,
+            grass: world.grass.diagnostics,
           },
           sharedWind:
-            knight instanceof Knight &&
             world.grass.wind === wind &&
             knight.cape.wind === wind &&
             audio.windSystem === wind,
@@ -288,15 +294,13 @@ function boot() {
     });
   }
 }
-try {
-  boot();
-} catch (error) {
+void boot().catch((error) => {
   console.error(error);
   const el = document.querySelector<HTMLElement>("#error");
   if (el) {
     el.hidden = false;
     el.textContent =
-      "The journey could not begin. This game requires WebGL2. Try an up-to-date Chrome, Edge, Firefox or Safari with hardware acceleration enabled. " +
+      "The journey could not begin. A WebGL2 browser and the bundled knight model are required. " +
       String(error);
   }
-}
+});

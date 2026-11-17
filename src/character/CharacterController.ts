@@ -39,17 +39,32 @@ export class CharacterController {
         -x * Math.sin(yaw) + z * Math.cos(yaw),
       );
     }
-    const target = this.dodge > 0 ? 8 : running ? 4.4 : 1.65;
+    let target = this.dodge > 0 ? 8 : running ? 3.6 : 1.35;
+    if (length > 0) {
+      const desired = Math.atan2(this.direction.x, this.direction.z),
+        error = Math.atan2(
+          Math.sin(desired - this.rotation),
+          Math.cos(desired - this.rotation),
+        );
+      const turn = Math.max(
+        -3.5 * dt,
+        Math.min(3.5 * dt, error * (1 - Math.exp(-8 * dt))),
+      );
+      this.rotation += turn;
+      this.turnRate = damp(this.turnRate, turn / Math.max(dt, 0.001), 10, dt);
+      target *= Math.max(0, Math.cos(error * 0.5)) ** 2;
+      this.direction.set(Math.sin(this.rotation), 0, Math.cos(this.rotation));
+    } else this.turnRate = damp(this.turnRate, 0, 10, dt);
     this.velocity.x = damp(
       this.velocity.x,
       this.direction.x * target,
-      length ? 5.5 : 7.5,
+      length ? 6 : 7.5,
       dt,
     );
     this.velocity.z = damp(
       this.velocity.z,
       this.direction.z * target,
-      length ? 5.5 : 7.5,
+      length ? 6 : 7.5,
       dt,
     );
     const nextX = this.position.x + this.velocity.x * dt,
@@ -57,17 +72,8 @@ export class CharacterController {
     const [nx, nz] = resolveObstacles(nextX, nextZ, obstacles);
     this.position.set(nx, heightAt(nx, nz), nz);
     this.speed = Math.hypot(this.velocity.x, this.velocity.z);
-    if (this.speed > 0.1) {
-      const angle = Math.atan2(this.velocity.x, this.velocity.z);
-      const delta = Math.atan2(
-        Math.sin(angle - this.rotation),
-        Math.cos(angle - this.rotation),
-      );
-      const turn = delta * (1 - Math.exp(-7 * dt));
-      this.rotation += turn;
-      this.turnRate = damp(this.turnRate, turn / Math.max(dt, 0.001), 8, dt);
-    }
   }
+
   stop() {
     this.velocity.set(0, 0, 0);
     this.speed = 0;

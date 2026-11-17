@@ -69,3 +69,26 @@ Inspected `references/knight_ref.png` after the user identified its filename. It
 The original interpretation retains the suit and exposes it with three unequal narrow scarf ribbons, removes the held sword in favor of a hip scabbard, raises and curves the meadow, and adds sparse old iron lanterns. Brightness is surface-selective. The renderer uses a rational silver highlight shoulder and stable variation among dense glyphs, rather than increasing all scene brightness.
 
 The image itself does not demonstrate locomotion. KayKit's CC0 authored walk/run curves supply coordinated upper-body timing; project-authored IK, foot contact, acceleration and turning adapt them to the terrain. Actual gameplay recordings are reviewed separately. The result remains an original procedural suit with adapted stylized animation, rather than a reproduction of the image or human mocap.
+
+## v0.5 — actual primary video and full-body human reference
+
+Opened `references/knight.mp4` (720 × 1280, 13.14 seconds) and extracted frames across its duration, then inspected the art region independently from the editor footage below it. Reopened `knight_ref.png` and compared them with v0.4 captures. The primary video shows a posed armored figure, a dramatically displaced scarf and densely overlapping curved grass. It is not a locomotion reference.
+
+Separate official CMU subject-16 walk/run performance movies were downloaded outside the repository. Later frames show the actual human performer and alternate camera view. These were compared with successive side-view game frames; the ASF/AMC performance, not the reference artwork, supplies gait timing and articulation.
+
+An internal reference-versus-game sheet at `/tmp/last-bell-v05/reference-game-comparison.jpg` compares the primary video art with a three-quarter live game view. A separate sheet includes the previous v0.4 portrait. The sheets and original media are deliberately excluded from Git.
+
+| Missing in v0.4                                 | v0.5 geometry/rendering response                                                                                          |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Rounded, featureless skull and shallow face gap | Sloped sallet crown, projecting brow, actual recessed dark aperture, separate angular cheeks and bevor                    |
+| Large rounded shoulder volumes                  | Five swept open lames over a mail/padded deltoid, with thickness, rolled rims and overlapping vertical reach              |
+| Uniform broad chest and waist                   | Separate fitted cuirass/backplate, pectoral overlays, narrow plackart, staggered fauld and thigh-following tassets        |
+| Straight, repetitive limb shells                | Shaped couters/poleyns with outside wings, tapered ridged greaves, finger lames, gauntlet cuffs and segmented sabatons    |
+| Little lower costume silhouette                 | Six curved wool strips with twisting folds, unequal lengths, serrated hems and shared-wind response                       |
+| Sparse tussocks, paths and landmark clutter     | Every meadow stratum populated; overlapping near/mid/far grass, no exposed path shading, trees or lamps                   |
+| Repeated dense glyph rows                       | Comparable-coverage tone families, bind-space variants and staggered baselines; major form changes come from the new mesh |
+| Stylized upper body over a generated leg arc    | Full-body human capture with calibrated stride, source ankle recovery and contact correction                              |
+
+Review of the unfiltered Blender render caught detached-looking lames and overly planar lower cloth. The lames were extended to overlap; the wool received curved/twisting fold profiles and irregular hems. Live captures then prompted glyph-baseline variation and a scabbard suspension adjustment to expose the hilt beyond the relaxed forearm. The final footprint remains a live 3D original interpretation.
+
+Remaining differences: the reference is an illustration-like posed composition with denser bespoke ornamental forms and carefully arranged highlights. The game is human-proportioned and must survive multiple camera angles, terrain and motion. Very small engravings disappear; cloth uses collision proxies; subcell blades still alias. None of those limitations is hidden behind a frame-rate claim.

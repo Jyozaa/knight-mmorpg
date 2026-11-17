@@ -1,14 +1,14 @@
-# v0.4 gameplay motion review
+# v0.5 motion and audio review
 
-[Play v04-gameplay.mp4](v04-gameplay.mp4) — about 30 seconds, 1152 × 720, 24 FPS, H.264, approximately 6.3 MiB. This is a silent Playwright screen recording; live synthesized audio and wind synchronization are checked separately by browser tests.
+[Play v05-gameplay.mp4](v05-gameplay.mp4) — 44.63 seconds, 1152 × 720, H.264/AAC, approximately 23.4 MiB. The edit includes uninterrupted side-view walking and running, moving turns/deceleration, equipment/armor, wind-driven scarf/grass, sitting, lying and the wide pullback. It includes the actual live synthesized game audio.
 
-The edit shows standing wind/scarf motion, a side-view walk, run, moving direction changes and deceleration, equipment/lantern framing, sitting, lying and the wide pullback. Cuts omit the return walk and long middle of the cinematic. Every included segment runs at real-time speed. Nothing from this video is used by the game renderer.
+The recorder requests 60 Hz directly from the WebGL canvas and connects the existing Web Audio master bus to the same MediaRecorder stream. The final source measures **48.21 FPS overall**, 48.49 in the uninterrupted walk and 47.46 in the run; detailed statistics are in [validation](../VALIDATION.md). The recorder did not sustain the requested 60 FPS. There is no frame interpolation, speed-up or animation smoothing in export. Cuts omit travel back to the waystone and long intervals of the 55-second sequence. Short audio fades only avoid clicks at those cuts.
 
-Reproduce against `npm run preview` with Chrome, Playwright FFmpeg and a system `ffmpeg` supporting libx264:
+Reproduce against `npm run preview` with Chrome and system FFmpeg (libx264/AAC):
 
 ```sh
 node tests/record-preview.mjs
 node scripts/compress-preview.mjs
 ```
 
-Raw video and timestamp marks stay in ignored `test-results/preview/`. The capture script drives real keys, camera drag/wheel and the normal rest interaction; it does not teleport the knight or advance the simulation clock.
+Raw native video, timestamp marks, source statistics and full PNGs stay ignored in `test-results/v05/`. The capture script drives real keys and camera controls and uses the normal rest interaction. No teleportation or clock advancement is used. Original reference media is not redistributed.

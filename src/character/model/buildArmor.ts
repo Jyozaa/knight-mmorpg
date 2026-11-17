@@ -1,14 +1,6 @@
 import * as T from "three";
 import { tagAsciiSurface, SURFACE_TAG } from "../../rendering/SurfaceStyle";
-import {
-  pauldronPlate,
-  ArmorAssembler,
-  armorLoft,
-  ellipseSeam,
-  seam,
-  panel,
-  type Section,
-} from "./armorGeometry";
+import { WIND_GLSL, WindSystem } from "../../environment/WindSystem";
 export interface Rig {
   hips: T.Bone;
   spine: T.Bone;
@@ -22,735 +14,168 @@ export interface Rig {
   forearms: T.Bone[];
   hands: T.Bone[];
 }
-const v = (x: number, y: number, z: number) => new T.Vector3(x, y, z);
-export function buildArmor(root: T.Group) {
-  const steel = new T.MeshStandardMaterial({
-    color: "#c9cdca",
-    metalness: 0.24,
-    roughness: 0.52,
+interface Gltf {
+  nodes: { name: string; translation?: number[]; children?: number[] }[];
+  accessors: {
+    bufferView: number;
+    componentType: number;
+    count: number;
+    type: string;
+    byteOffset?: number;
+  }[];
+  bufferViews: { byteOffset?: number; byteLength: number }[];
+  meshes: {
+    primitives: {
+      indices: number;
+      material: number;
+      attributes: Record<string, number>;
+    }[];
+  }[];
+  materials: {
+    name: string;
+    pbrMetallicRoughness: {
+      baseColorFactor: number[];
+      metallicFactor: number;
+      roughnessFactor: number;
+    };
+  }[];
+  skins: { joints: number[] }[];
+}
+let model: { json: Gltf; bytes: ArrayBuffer; offset: number } | undefined;
+/** Load the original Blender-authored asset once; no primitive character is substituted. */
+export async function prepareArmor(bytes?: ArrayBuffer) {
+  if (!bytes) {
+    const response = await fetch(
+      `${import.meta.env.BASE_URL}models/nameless-knight.glb`,
+    );
+    if (!response.ok) throw new Error(`Knight model: ${response.status}`);
+    bytes = await response.arrayBuffer();
+  }
+  const view = new DataView(bytes);
+  if (view.getUint32(0, true) !== 0x46546c67)
+    throw new Error("Invalid knight GLB");
+  const length = view.getUint32(12, true),
+    json = JSON.parse(
+      new TextDecoder().decode(new Uint8Array(bytes, 20, length)),
+    ) as Gltf;
+  model = { json, bytes, offset: 28 + length };
+}
+export function buildArmor(root: T.Group, wind?: WindSystem) {
+  if (!model)
+    throw new Error("Call prepareArmor before constructing the knight");
+  const { json, bytes, offset } = model;
+  const read = (index: number) => {
+    const a = json.accessors[index],
+      v = json.bufferViews[a.bufferView],
+      size = (
+        { SCALAR: 1, VEC3: 3, VEC4: 4, MAT4: 16 } as Record<string, number>
+      )[a.type],
+      start = offset + (v.byteOffset ?? 0) + (a.byteOffset ?? 0),
+      length = a.count * size;
+    return a.componentType === 5126
+      ? new Float32Array(bytes, start, length)
+      : a.componentType === 5123
+        ? new Uint16Array(bytes, start, length)
+        : new Uint32Array(bytes, start, length);
+  };
+  const bones = json.skins[0].joints.map((i) => {
+    const b = new T.Bone();
+    b.name = json.nodes[i].name;
+    b.position.fromArray(json.nodes[i].translation ?? [0, 0, 0]);
+    return b;
   });
-  const edge = new T.MeshStandardMaterial({
-    color: "#e1e4df",
-    metalness: 0.28,
-    roughness: 0.31,
+  json.skins[0].joints.forEach((node, i) => {
+    for (const child of json.nodes[node].children ?? []) {
+      const j = json.skins[0].joints.indexOf(child);
+      if (j >= 0) bones[i].add(bones[j]);
+    }
   });
-  const mail = new T.MeshStandardMaterial({
-    color: "#585d5c",
-    metalness: 0.3,
-    roughness: 0.65,
-  });
-  const leather = new T.MeshStandardMaterial({
-    color: "#151716",
-    roughness: 0.95,
-  });
-  const brass = new T.MeshStandardMaterial({
-    color: "#827552",
-    metalness: 0.4,
-    roughness: 0.5,
-  });
-  for (const material of [steel, edge]) {
+  root.add(bones[0]);
+  const get = (name: string) => bones.find((b) => b.name === name)!;
+  const pair = (prefix: string) => [get(`${prefix}_L`), get(`${prefix}_R`)];
+  const rig: Rig = {
+    hips: get("pelvis"),
+    spine: get("lumbar"),
+    chest: get("thorax"),
+    head: get("neck"),
+    arms: pair("upper_arm"),
+    forearms: pair("forearm"),
+    hands: pair("hand"),
+    thighs: pair("thigh"),
+    shins: pair("shin"),
+    feet: pair("ankle"),
+    toes: pair("toe"),
+  };
+  const materials = json.materials.map((m, i) => {
+    const p = m.pbrMetallicRoughness,
+      material = new T.MeshStandardMaterial({
+        name: m.name,
+        color: new T.Color().fromArray(p.baseColorFactor),
+        metalness: p.metallicFactor * 0.55,
+        roughness: p.roughnessFactor,
+        fog: false,
+        side: T.DoubleSide,
+      });
     material.onBeforeCompile = (shader) => {
       shader.vertexShader =
-        "varying vec3 armorPosition;\n" + shader.vertexShader;
+        "varying vec3 bindPosition;\n" + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace(
         "#include <begin_vertex>",
-        "#include <begin_vertex>\n armorPosition=position;",
+        "#include <begin_vertex>\n bindPosition=position;",
       );
       shader.fragmentShader =
-        "varying vec3 armorPosition;\n" + shader.fragmentShader;
+        "varying vec3 bindPosition;\n" + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-        float hammer=sin(armorPosition.x*165.+sin(armorPosition.y*130.)*2.)*sin(armorPosition.z*140.+armorPosition.y*87.);
-        float patina=sin(armorPosition.y*32.+armorPosition.x*18.)*sin(armorPosition.z*41.-armorPosition.x*27.);
-        float scratch=pow(max(0.,sin(armorPosition.y*740.+sin(armorPosition.x*71.)*.9)),26.);
-        diffuseColor.rgb*=.91+hammer*.045+patina*.075+scratch*.035;
-      `,
+    float forged=sin(bindPosition.x*57.+sin(bindPosition.y*42.))*sin(bindPosition.z*67.-bindPosition.y*53.);
+    float wear=pow(max(0.,sin(bindPosition.y*310.+bindPosition.x*47.)),18.);
+    diffuseColor.rgb*=.88+forged*.12+wear*.06;`,
       );
-    };
-    material.customProgramCacheKey = () => "hammered-silver-v03";
-  }
-  for (const material of [steel, edge, mail, leather, brass]) {
-    material.fog = false;
-    tagAsciiSurface(material, SURFACE_TAG.armor);
-  }
-  const b = new ArmorAssembler(root, [steel, edge, mail, leather, brass]);
-  const joint = (
-    name: string,
-    parent: T.Object3D,
-    p: [number, number, number],
-  ) => b.register(new T.Bone(), name, parent, p);
-  const hips = joint("pelvis", root, [0, 1.01, 0]),
-    spine = joint("lumbar", hips, [0, 0.11, 0]),
-    chest = joint("thorax", spine, [0, 0.24, 0]),
-    head = joint("neck", chest, [0, 0.31, 0]);
-  const rig: Rig = {
-    hips,
-    spine,
-    chest,
-    head,
-    thighs: [],
-    shins: [],
-    feet: [],
-    toes: [],
-    arms: [],
-    forearms: [],
-    hands: [],
-  };
-  // A fitted Gothic cuirass. The deep front keel and widening rib cage avoid the old barrel torso.
-  const chestSections: Section[] = [
-    { y: -0.23, width: 0.218, depth: 0.125 },
-    { y: -0.18, width: 0.232, depth: 0.14 },
-    { y: -0.08, width: 0.28, depth: 0.172 },
-    { y: 0.04, width: 0.326, depth: 0.19 },
-    { y: 0.14, width: 0.31, depth: 0.145 },
-    { y: 0.21, width: 0.245, depth: 0.115 },
-    { y: 0.24, width: 0.14, depth: 0.09 },
-  ];
-  b.add(chest, armorLoft(chestSections, 10, 0.12));
-  for (const y of [-0.2, -0.15]) b.add(chest, ellipseSeam(y, 0.235, 0.147), 1);
-  // Embossed ribs, rolled armhole edges and tapering decorative flutes.
-  for (const side of [-1, 1]) {
-    for (let i = 1; i <= 4; i++)
-      b.add(
-        chest,
-        seam(
-          [
-            v(side * (0.018 + i * 0.028), -0.2, 0.145),
-            v(side * (0.025 + i * 0.041), -0.05, 0.165),
-            v(side * (0.03 + i * 0.047), 0.11, 0.13),
-          ],
-          0.0045,
-        ),
-        1,
-      );
-    b.add(
-      chest,
-      seam(
-        [
-          v(side * 0.14, 0.245, 0.08),
-          v(side * 0.265, 0.19, 0.1),
-          v(side * 0.325, 0.08, 0.07),
-          v(side * 0.29, -0.07, 0.06),
-        ],
-        0.009,
-      ),
-      1,
-    );
-    // Rivet heads spaced along the lower breastplate, not a flat painted texture.
-    for (let i = 0; i < 6; i++)
-      b.add(chest, new T.IcosahedronGeometry(0.006, 1), 1, [
-        side * (0.04 + i * 0.032),
-        -0.17,
-        0.155,
-      ]);
-  }
-  b.add(
-    chest,
-    seam([v(0, -0.22, 0.151), v(0, -0.04, 0.205), v(0, 0.16, 0.16)], 0.006),
-    1,
-  );
-  b.add(
-    spine,
-    armorLoft(
-      [
-        { y: -0.13, width: 0.21, depth: 0.13 },
-        { y: 0.09, width: 0.23, depth: 0.14 },
-      ],
-      0,
-    ),
-    2,
-  );
-  // Five overlapping articulated fauld lames, with divided, pointed tassets.
-  for (let i = 0; i < 5; i++) {
-    const y = 0.07 - i * 0.05,
-      w = 0.22 + i * 0.013;
-    b.add(
-      hips,
-      armorLoft(
-        [
-          { y: y + 0.04, width: w - 0.008, depth: 0.14 + i * 0.006 },
-          { y, width: w + 0.008, depth: 0.155 + i * 0.006 },
-        ],
-        14,
-        0.04,
-      ),
-    );
-    b.add(hips, ellipseSeam(y, w + 0.01, 0.156 + i * 0.006), 1);
-  }
-  const addTasset = (side: number, thigh: T.Bone) => {
-    const tasset = panel(
-      [
-        [-0.105, 0.03],
-        [0.1, 0.025],
-        [0.12, -0.15],
-        [0.075, -0.31],
-        [-0.07, -0.32],
-        [-0.12, -0.12],
-      ],
-      0.018,
-      0.009,
-    );
-    b.add(
-      thigh,
-      tasset,
-      0,
-      [side * -0.008, -0.11, 0.125],
-      [0.1, side * 0.16, side * -0.08],
-    );
-    for (let i = 0; i < 4; i++)
-      b.add(
-        thigh,
-        seam(
-          [
-            v(side * -0.008 - 0.085, -0.14 - i * 0.055, 0.158),
-            v(side * -0.008, -0.15 - i * 0.055, 0.18),
-            v(side * -0.008 + 0.085, -0.14 - i * 0.055, 0.158),
-          ],
-          0.004,
-        ),
-        1,
-      );
-  };
-  b.add(
-    hips,
-    armorLoft(
-      [
-        { y: 0.075, width: 0.226, depth: 0.149 },
-        { y: 0.018, width: 0.23, depth: 0.153 },
-      ],
-      0,
-    ),
-    3,
-  );
-  b.add(
-    hips,
-    panel(
-      [
-        [-0.037, 0.03],
-        [0.037, 0.03],
-        [0.037, -0.03],
-        [-0.037, -0.03],
-      ],
-      0.01,
-      0.004,
-    ),
-    4,
-    [0.04, 0.05, 0.155],
-  );
-  // Gorget and actual linked mail at the vulnerable collar and joints.
-  b.add(
-    head,
-    armorLoft(
-      [
-        { y: -0.09, width: 0.12, depth: 0.095 },
-        { y: -0.055, width: 0.105, depth: 0.08 },
-        { y: 0.01, width: 0.105, depth: 0.09 },
-      ],
-      10,
-    ),
-    0,
-  );
-  b.add(head, ellipseSeam(-0.075, 0.12, 0.096), 1);
-  const addMail = (
-    bone: T.Bone,
-    sections: Section[],
-    rows: number,
-    around: number,
-  ) => {
-    b.add(bone, armorLoft(sections), 2);
-    for (let r = 0; r < rows; r++) {
-      const t = r / Math.max(1, rows - 1),
-        a = sections[0],
-        z = sections[sections.length - 1];
-      const y = T.MathUtils.lerp(a.y, z.y, t),
-        w = T.MathUtils.lerp(a.width, z.width, t),
-        d = T.MathUtils.lerp(a.depth, z.depth, t);
-      for (let j = 0; j < around; j++) {
-        const angle = ((j + (r % 2) * 0.5) / around) * Math.PI * 2;
-        b.add(
-          bone,
-          new T.TorusGeometry(0.0085, 0.0019, 3, 7),
-          r % 3 === 0 ? 1 : 2,
-          [Math.sin(angle) * w, y, Math.cos(angle) * d],
-          [0.32, angle, 0],
+      if (i === 5 && wind) {
+        Object.assign(shader.uniforms, wind.uniforms);
+        shader.vertexShader = WIND_GLSL + shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace(
+          "bindPosition=position;",
+          `bindPosition=position;
+    vec3 f=sharedWind((modelMatrix*vec4(position,1.)).xz);
+    float hem=clamp((.82-position.y)/.32,0.,1.);
+    transformed.x+=windDirection.x*f.x*hem*hem*.08;
+    transformed.z+=windDirection.y*f.x*hem*hem*.08+sin(windTime*5.-position.y*19.)*f.x*hem*.018;`,
         );
       }
-    }
-  };
-  addMail(
-    head,
-    [
-      { y: -0.085, width: 0.115, depth: 0.092 },
-      { y: 0.02, width: 0.104, depth: 0.088 },
-    ],
-    7,
-    30,
-  );
-  // Bascinet: pointed skull, projecting visor, open sight slit and articulated bevor.
-  b.add(
-    head,
-    armorLoft(
-      [
-        { y: 0.005, width: 0.13, depth: 0.115, z: -0.015 },
-        { y: 0.09, width: 0.151, depth: 0.143, z: -0.013 },
-        { y: 0.19, width: 0.151, depth: 0.135, z: -0.025 },
-        { y: 0.255, width: 0.122, depth: 0.109, z: -0.035 },
-        { y: 0.285, width: 0.058, depth: 0.06, z: -0.025 },
-        { y: 0.296, width: 0.001, depth: 0.003, z: -0.025 },
-      ],
-      0,
-      0.03,
-      48,
-    ),
-  );
-  b.add(
-    head,
-    armorLoft(
-      [
-        { y: 0.035, width: 0.135, depth: 0.13, z: 0.005 },
-        { y: 0.085, width: 0.148, depth: 0.165, z: 0.01 },
-        { y: 0.125, width: 0.146, depth: 0.155, z: 0.012 },
-      ],
-      0,
-      0.16,
-      32,
-      -Math.PI * 0.48,
-      Math.PI * 0.48,
-    ),
-  );
-  b.add(
-    head,
-    armorLoft(
-      [
-        { y: 0.145, width: 0.144, depth: 0.155, z: 0.01 },
-        { y: 0.168, width: 0.142, depth: 0.145, z: 0.002 },
-        { y: 0.204, width: 0.133, depth: 0.127, z: -0.01 },
-      ],
-      0,
-      0.14,
-      32,
-      -Math.PI * 0.48,
-      Math.PI * 0.48,
-    ),
-    1,
-  );
-  b.add(head, ellipseSeam(0.127, 0.148, 0.155, 0.013, -1.45, 1.45, 0.005), 1);
-  b.add(head, ellipseSeam(0.145, 0.146, 0.155, 0.012, -1.45, 1.45, 0.004), 0);
-  b.add(
-    head,
-    armorLoft(
-      [
-        { y: -0.025, width: 0.116, depth: 0.11, z: 0.004 },
-        { y: 0.02, width: 0.14, depth: 0.14, z: 0.005 },
-        { y: 0.055, width: 0.144, depth: 0.159, z: 0.008 },
-      ],
-      0,
-      0.12,
-      32,
-      -Math.PI * 0.65,
-      Math.PI * 0.65,
-    ),
-  );
-  for (const side of [-1, 1]) {
-    b.add(head, new T.IcosahedronGeometry(0.017, 2), 4, [
-      side * 0.145,
-      0.14,
-      0.025,
-    ]);
-    for (let r = 0; r < 2; r++)
-      for (let j = 0; j < 5; j++)
-        b.add(
-          head,
-          panel(
-            [
-              [-0.004, -0.007],
-              [0.004, -0.007],
-              [0.004, 0.007],
-              [-0.004, 0.007],
-            ],
-            0.001,
-            0.001,
-          ),
-          3,
-          [side * (0.035 + j * 0.019), 0.065 + r * 0.026, 0.165 - j * 0.005],
-        );
+    };
+    material.customProgramCacheKey = () => `forged-blender-v05-${i}`;
+    tagAsciiSurface(
+      material,
+      i === 5 ? SURFACE_TAG.cloth : SURFACE_TAG.armor,
+      i === 5
+        ? undefined
+        : ".14+.10*fract(sin(dot(floor(bindPosition*31.),vec3(12.9898,78.233,37.719)))*43758.5453)",
+    );
+    return material;
+  });
+  const primitives = json.meshes[0].primitives,
+    attrs = primitives[0].attributes,
+    g = new T.BufferGeometry();
+  g.setAttribute("position", new T.BufferAttribute(read(attrs.POSITION), 3));
+  g.setAttribute("normal", new T.BufferAttribute(read(attrs.NORMAL), 3));
+  g.setAttribute("skinIndex", new T.BufferAttribute(read(attrs.JOINTS_0), 4));
+  g.setAttribute("skinWeight", new T.BufferAttribute(read(attrs.WEIGHTS_0), 4));
+  const indices: number[] = [];
+  for (const p of primitives) {
+    const start = indices.length;
+    for (const index of read(p.indices)) indices.push(index);
+    g.addGroup(start, indices.length - start, p.material);
   }
-  b.add(
-    head,
-    seam(
-      [
-        v(0, 0.19, -0.161),
-        v(0, 0.271, -0.09),
-        v(0, 0.299, -0.023),
-        v(0, 0.277, 0.08),
-        v(0, 0.214, 0.127),
-      ],
-      0.005,
-    ),
-    1,
-  );
-  // Arms: overlapping scalloped pauldrons, fitted rerebraces, couters and fluted vambraces.
-  for (const side of [-1, 1]) {
-    const index = side < 0 ? 0 : 1;
-    const arm = joint(side < 0 ? "upper_arm.L" : "upper_arm.R", chest, [
-      side * 0.315,
-      0.125,
-      -0.005,
-    ]);
-    const forearm = joint(
-      side < 0 ? "forearm.L" : "forearm.R",
-      arm,
-      [0, -0.335, 0],
-    );
-    const hand = joint(side < 0 ? "hand.L" : "hand.R", forearm, [0, -0.3, 0]);
-    rig.arms[index] = arm;
-    rig.forearms[index] = forearm;
-    rig.hands[index] = hand;
-    addMail(
-      arm,
-      [
-        { y: 0.02, width: 0.115, depth: 0.105 },
-        { y: -0.17, width: 0.09, depth: 0.082 },
-      ],
-      8,
-      28,
-    );
-    for (let layer = 0; layer < 4; layer++) {
-      const width = 0.205 - layer * 0.014,
-        depth = 0.175 - layer * 0.011,
-        top = 0.045 - layer * 0.06;
-      const plate = pauldronPlate(width, depth, top, layer);
-      b.add(arm, plate.geometry, 0, [side * 0.04, 0, 0]);
-      b.add(arm, plate.rim, 1, [side * 0.04, 0, 0]);
-      for (const a of [-1.05, -0.4, 0.4, 1.05])
-        b.add(arm, new T.IcosahedronGeometry(0.006, 1), 1, [
-          side * 0.04 + Math.sin(a) * width * 0.88,
-          top - 0.025,
-          Math.cos(a) * depth * 0.88,
-        ]);
-    }
-    b.add(
-      arm,
-      armorLoft(
-        [
-          { y: -0.12, width: 0.105, depth: 0.095 },
-          { y: -0.2, width: 0.103, depth: 0.09 },
-          { y: -0.31, width: 0.076, depth: 0.078 },
-        ],
-        12,
-        0.04,
-      ),
-    );
-    addMail(
-      forearm,
-      [
-        { y: 0.035, width: 0.075, depth: 0.073 },
-        { y: -0.06, width: 0.071, depth: 0.066 },
-      ],
-      5,
-      20,
-    );
-    b.add(
-      forearm,
-      armorLoft(
-        [
-          { y: 0.03, width: 0.087, depth: 0.086 },
-          { y: -0.015, width: 0.115, depth: 0.112 },
-          { y: -0.067, width: 0.082, depth: 0.083 },
-        ],
-        0,
-        0.1,
-      ),
-    );
-    b.add(
-      forearm,
-      panel(
-        [
-          [-0.03, 0.04],
-          [0.08, 0.06],
-          [0.12, -0.005],
-          [0.075, -0.09],
-          [-0.025, -0.05],
-        ],
-        0.013,
-        0.012,
-      ),
-      0,
-      [side * 0.06, -0.004, 0],
-      [0, (side * Math.PI) / 2, 0],
-    );
-    b.add(
-      forearm,
-      armorLoft(
-        [
-          { y: -0.06, width: 0.081, depth: 0.084 },
-          { y: -0.12, width: 0.084, depth: 0.086 },
-          { y: -0.235, width: 0.06, depth: 0.068 },
-          { y: -0.285, width: 0.061, depth: 0.072 },
-        ],
-        12,
-        0.08,
-      ),
-    );
-    for (const y of [-0.09, -0.25])
-      b.add(
-        forearm,
-        ellipseSeam(y, y < -0.2 ? 0.063 : 0.085, y < -0.2 ? 0.073 : 0.087),
-        1,
-      );
-    for (const sideRivet of [-1, 1])
-      for (let row = 0; row < 3; row++)
-        b.add(forearm, new T.IcosahedronGeometry(0.0045, 1), 1, [
-          sideRivet * 0.062,
-          -0.1 - row * 0.055,
-          0.072,
-        ]);
-    // Flared cuff, five metacarpal lames and separately modeled articulated fingers.
-    b.add(
-      hand,
-      armorLoft(
-        [
-          { y: 0.055, width: 0.075, depth: 0.078 },
-          { y: 0.005, width: 0.063, depth: 0.068 },
-          { y: -0.075, width: 0.069, depth: 0.052 },
-          { y: -0.135, width: 0.061, depth: 0.045 },
-        ],
-        8,
-        0.06,
-      ),
-    );
-    for (let i = 0; i < 4; i++)
-      b.add(
-        hand,
-        seam(
-          [
-            v(-0.058, -0.063 - i * 0.02, 0.048),
-            v(0, -0.067 - i * 0.02, 0.057),
-            v(0.058, -0.063 - i * 0.02, 0.048),
-          ],
-          0.005,
-        ),
-        1,
-      );
-    for (let finger = 0; finger < 4; finger++) {
-      const x = (finger - 1.5) * 0.028;
-      for (let k = 0; k < 3; k++)
-        b.add(
-          hand,
-          armorLoft(
-            [
-              {
-                y: -0.13 - k * 0.028,
-                width: 0.014,
-                depth: 0.022,
-                z: 0.006 + k * 0.013,
-                x,
-              },
-              {
-                y: -0.158 - k * 0.028,
-                width: 0.012,
-                depth: 0.019,
-                z: 0.012 + k * 0.013,
-                x,
-              },
-            ],
-            0,
-          ),
-          k % 2,
-        );
-    }
-    b.add(
-      hand,
-      armorLoft([
-        { y: -0.07, width: 0.019, depth: 0.023, x: side * 0.075, z: 0.02 },
-        { y: -0.12, width: 0.017, depth: 0.02, x: side * 0.083, z: 0.055 },
-        { y: -0.145, width: 0.012, depth: 0.018, x: side * 0.07, z: 0.075 },
-      ]),
-      0,
-    );
-    // Legs: cuisses follow thigh anatomy, winged poleyns and pinched greaves follow the calf.
-    const thigh = joint(side < 0 ? "thigh.L" : "thigh.R", hips, [
-      side * 0.153,
-      -0.04,
-      0,
-    ]);
-    const shin = joint(side < 0 ? "shin.L" : "shin.R", thigh, [0, -0.445, 0]);
-    const foot = joint(side < 0 ? "ankle.L" : "ankle.R", shin, [0, -0.435, 0]);
-    const toe = joint(side < 0 ? "toe.L" : "toe.R", foot, [0, -0.055, 0.105]);
-    rig.thighs[index] = thigh;
-    addTasset(side, thigh);
-    rig.shins[index] = shin;
-    rig.feet[index] = foot;
-    rig.toes[index] = toe;
-    addMail(
-      thigh,
-      [
-        { y: 0.01, width: 0.125, depth: 0.115 },
-        { y: -0.13, width: 0.115, depth: 0.1 },
-      ],
-      6,
-      28,
-    );
-    b.add(
-      thigh,
-      armorLoft(
-        [
-          { y: -0.06, width: 0.131, depth: 0.12 },
-          { y: -0.17, width: 0.129, depth: 0.115, z: 0.006 },
-          { y: -0.3, width: 0.101, depth: 0.094, z: 0.008 },
-          { y: -0.42, width: 0.078, depth: 0.08 },
-        ],
-        14,
-        0.08,
-      ),
-    );
-    for (const y of [-0.1, -0.39])
-      b.add(
-        thigh,
-        ellipseSeam(y, y < -0.3 ? 0.081 : 0.132, y < -0.3 ? 0.084 : 0.12),
-        1,
-      );
-    b.add(
-      shin,
-      armorLoft(
-        [
-          { y: 0.045, width: 0.087, depth: 0.086 },
-          { y: 0.005, width: 0.108, depth: 0.108, z: 0.025 },
-          { y: -0.06, width: 0.087, depth: 0.088 },
-        ],
-        12,
-        0.1,
-      ),
-    );
-    b.add(
-      shin,
-      panel(
-        [
-          [-0.035, 0.045],
-          [0.07, 0.06],
-          [0.115, -0.015],
-          [0.075, -0.085],
-          [-0.03, -0.05],
-        ],
-        0.014,
-        0.009,
-      ),
-      0,
-      [side * 0.065, 0, 0],
-      [0, (side * Math.PI) / 2, 0],
-    );
-    addMail(
-      shin,
-      [
-        { y: -0.035, width: 0.073, depth: 0.075 },
-        { y: -0.11, width: 0.076, depth: 0.075 },
-      ],
-      4,
-      20,
-    );
-    b.add(
-      shin,
-      armorLoft(
-        [
-          { y: -0.075, width: 0.083, depth: 0.085 },
-          { y: -0.16, width: 0.098, depth: 0.09, z: -0.012 },
-          { y: -0.26, width: 0.075, depth: 0.072, z: -0.009 },
-          { y: -0.37, width: 0.055, depth: 0.06 },
-          { y: -0.415, width: 0.065, depth: 0.068 },
-        ],
-        14,
-        0.1,
-      ),
-    );
-    b.add(
-      shin,
-      seam([v(0, -0.09, 0.091), v(0, -0.22, 0.087), v(0, -0.4, 0.075)], 0.005),
-      1,
-    );
-    b.add(
-      foot,
-      armorLoft([
-        { y: 0.01, width: 0.064, depth: 0.078, z: 0.015 },
-        { y: -0.065, width: 0.073, depth: 0.12, z: 0.035 },
-        { y: -0.085, width: 0.073, depth: 0.13, z: 0.04 },
-      ]),
-      3,
-    );
-    for (let i = 0; i < 5; i++) {
-      const z = 0.025 + i * 0.032,
-        w = 0.073 - i * 0.006,
-        y = -0.01 - i * 0.009;
-      b.add(
-        foot,
-        seam(
-          [
-            v(-w, y - 0.025, z),
-            v(-w * 0.7, y + 0.015, z + 0.004),
-            v(0, y + 0.03, z + 0.008),
-            v(w * 0.7, y + 0.015, z + 0.004),
-            v(w, y - 0.025, z),
-          ],
-          0.013,
-        ),
-        0,
-      );
-      b.add(
-        foot,
-        seam(
-          [
-            v(-w, y - 0.025, z + 0.011),
-            v(0, y + 0.03, z + 0.019),
-            v(w, y - 0.025, z + 0.011),
-          ],
-          0.0035,
-        ),
-        1,
-      );
-    }
-    b.add(
-      toe,
-      armorLoft([
-        { y: 0.005, width: 0.046, depth: 0.054, z: 0.055 },
-        { y: -0.025, width: 0.05, depth: 0.06, z: 0.055 },
-      ]),
-      0,
-    );
-  }
-  // A compact shield leaves the fitted armor visible; its face is curved in three dimensions.
-  const shield = panel(
-    [
-      [-0.19, 0.22],
-      [0.19, 0.22],
-      [0.17, -0.08],
-      [0, -0.32],
-      [-0.17, -0.08],
-    ],
-    0.025,
-    0.015,
-  );
-  b.add(rig.forearms[0], shield, 0, [-0.1, -0.14, 0.105], [0, -0.5, -0.06]);
-  b.add(
-    rig.forearms[0],
-    seam(
-      [v(-0.11, 0.04, 0.15), v(-0.1, -0.17, 0.18), v(-0.1, -0.38, 0.15)],
-      0.009,
-    ),
-    4,
-  );
-  // Small brass keepsake, the sole warm accent on the suit.
-  b.add(
-    hips,
-    armorLoft(
-      [
-        { y: -0.03, width: 0.025, depth: 0.025 },
-        { y: -0.11, width: 0.045, depth: 0.045 },
-      ],
-      0,
-    ),
-    4,
-    [-0.25, -0.02, 0.11],
-  );
-  const mesh = b.build();
-  return { rig, mesh, materials: b.materials };
+  g.setIndex(indices);
+  const mesh = new T.SkinnedMesh(g, materials);
+  mesh.name = "Blender-authored sallet and articulated harness";
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  root.add(mesh);
+  root.updateMatrixWorld(true);
+  mesh.bind(new T.Skeleton(bones));
+  return { rig, mesh, materials };
 }
