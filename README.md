@@ -2,79 +2,86 @@
 
 _A world waiting to be heard._
 
-A playable third-person fantasy landscape reconstructed entirely from ASCII characters on the GPU. Prelude 01 implements **The Knight on the Hill**: exploration, an original articulated knight, environmental sound, and a continuous real-time resting cinematic. It is the first vertical slice, not the complete five-chapter RPG.
+A playable third-person fantasy scene reconstructed entirely from ASCII glyphs on the GPU. Version 0.2 overhauls **The Knight on the Hill** with black negative space, an original detailed skinned knight, clustered curved grass, contact-driven animation and a refined resting cinematic. The existing controls, audio, UI and hilltop interaction are preserved. This is a vertical slice, not the full five-chapter RPG.
 
-![The Last Bell title screen, rendered from the live 3D ASCII world](docs/screenshots/title.webp)
+![Live title scene](docs/screenshots/title.webp)
 
 ## Play locally
 
-Requires Node.js 22.12+ and a current desktop browser with WebGL2 and hardware acceleration.
+Requires Node.js 22.13+ (22 LTS), or 24+ and a current desktop WebGL2 browser with hardware acceleration.
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite (usually **http://localhost:5173**), then select **Begin Journey**. This click also unlocks browser audio. A mouse and keyboard are required for gameplay; the menu and settings adapt to smaller screens.
+Open the URL printed by Vite (usually **http://localhost:5173**) and choose **Begin Journey** to unlock audio. Walk forward toward the waystone, about 10 metres from the spawn. Press **E** when **Press E to Rest** appears. The knight prepares, sits and reclines over ten seconds; the camera continues its real-time pullback to 55 seconds. **Return to the fields** reverses the rest pose before movement unlocks. Escape pauses either mode.
 
-Walk forward along the ridge toward the small ring-marked waystone, roughly 10 metres from your starting position. When **Press E to Rest** appears, press E. The knight sits, lies back and breathes while a 55-second camera sequence reveals the landscape. Select **Return to the fields** at any time; the knight smoothly stands before movement resumes. Escape pauses the sequence.
+Keyboard/mouse gameplay is supported; menus adapt to smaller viewports.
 
-## Controls
+| Control                  | Action                                   |
+| ------------------------ | ---------------------------------------- |
+| WASD                     | Camera-relative movement                 |
+| Mouse                    | Look while captured                      |
+| Drag either mouse button | Orbit without capture                    |
+| Wheel                    | Zoom for detail inspection               |
+| Double-click world       | Capture mouse again                      |
+| Shift                    | Run                                      |
+| Space                    | Evade                                    |
+| E                        | Rest near waystone                       |
+| Escape                   | Pause/resume and release mouse           |
+| F                        | Fullscreen                               |
+| H                        | Control help                             |
+| Backquote                | Diagnostics and opt-in CPU/GPU profiling |
 
-| Control                       | Action                                  |
-| ----------------------------- | --------------------------------------- |
-| WASD                          | Move relative to the camera             |
-| Mouse                         | Look while pointer is captured          |
-| Drag with either mouse button | Orbit without pointer lock              |
-| Double-click world            | Capture mouse again                     |
-| Shift                         | Run                                     |
-| Space                         | Evade, with a short cooldown            |
-| E                             | Rest near the hilltop waystone          |
-| Escape                        | Pause/resume; release mouse capture     |
-| F                             | Toggle fullscreen                       |
-| H                             | Show/hide controls                      |
-| Backquote (`)                 | FPS, frame time, draw calls, ASCII grid |
+Walking is 1.65 m/s and running is 4.4 m/s, matched to the new leg stride. Left mouse combat is reserved for a future milestone.
 
-Left mouse attacks are reserved for the future combat milestone. Combat is **not** implemented in this build.
+## What changed in 0.2
 
-## Included
+- Predominantly black scene, restrained fill, silver key/rim, black distance fog and no colored sky or lifted dark terrain.
+- Original fitted Gothic armor: projecting visor, plate contours/flutes, layered pauldrons, real mail links, gauntlet fingers, tassets, sabatons, detailed sword, compact shield and pleated mantle.
+- An 18-joint SkinnedMesh batches roughly 105,000 armor triangles into five material draws. Original GLB interchange asset and modeling source are included; no third-party knight was used.
+- Distance-driven walk and distinct run gait, world-space stance anchors, two-bone terrain IK, pelvis reach correction, foot correction steps, torso counter-motion, breathing and a staged rest/get-up sequence.
+- Five curved grass tuft templates with patch clustering, clearings, world-direction gusts, planted roots and distance detail reduction.
+- Measured-density glyph atlas, depth-derived shape detail, oriented ASCII outlines, camera-reprojected history and rejection on motion/disocclusion.
+- Refined follow, wheel zoom, low cinematic side framing, real lint, expanded tests and CI.
 
-- An actual 3D world: rolling terrain, mountain silhouettes, valley, rocks, fir trees, a ruined bell tower and a hilltop waystone.
-- An original 3D knight with helmet, visor, layered plate armor, chainmail-colored joints, boots, sword, shield, cloth cape and brass keepsake bell. Hierarchical Bone joints drive smooth procedural animation; no sprite frames or reference assets.
-- Accelerated movement, camera-relative steering, walking/running blends, idle breathing, turning, evade motion, terrain following and obstacle collision.
-- GPU glyph atlas, depth-aware silhouette emphasis, fixed character grid and filtered/hysteretic luminance. Everything visible in the world passes through the ASCII pipeline, including sky, shadows and cinematics.
-- 28,000 instanced wind-animated grass blades, instanced trees/rocks, moving atmospheric motes, twilight lighting and fog.
-- Sitting, lying, continuous cinematic camera pullback, breathing, closing quotation and a smooth return to exploration.
-- Procedural wind, birds, footsteps on grass/stone, armor ticks, breathing, spatial distant bells and a sparse original musical drone. Independent master, ambience, music, effects and cinematic buses.
-- Menu, pause, credits, control help, saved settings, audio levels, density, render scale, sensitivity, fullscreen and optional diagnostics.
-- Self-contained runtime: bundled fonts and original geometry/audio; no third-party CDN or downloaded character required.
+The model remains original procedural art, and animation remains contact-driven procedural work rather than authored/mocap clips. Cloth is GPU-deformed, not simulated. Those distinctions and remaining limits are described in [architecture](docs/ARCHITECTURE.md) and [visual study](docs/VISUAL_REFERENCES.md).
 
 ## Verify and build
 
 ```sh
 npm run typecheck
 npm run lint
+npm run format:check
 npm test
 npm run build
 npm run preview
 ```
 
-`npm run lint` checks formatting with Prettier; TypeScript strict checking is the code correctness check. The unit tests cover frame-rate independence, terrain/collision, controller behavior, cinematic safety, seeded generation and interaction selection.
+ESLint performs real code linting; Prettier checks formatting separately. GitHub Actions runs type checking, lint, format, unit tests and build on pushes/PRs. The 17 system tests include rock matrices versus colliders, GLB skin data, grass templates, temporal behavior, foot planting/clearance, rest/reverse at 30/60/144 Hz, camera continuity and existing movement/interaction systems.
 
-With the development server running in another terminal:
+With dev or preview running in another terminal:
 
 ```sh
+npx playwright install ffmpeg
 npm run test:browser
+# Test built production output instead:
+TEST_URL='http://localhost:4173/?diagnostics' npm run test:browser
 ```
 
-The browser test uses installed Google Chrome via Playwright. Alternatively install a Playwright browser with `npx playwright install chromium`, then run `BROWSER_CHANNEL=chromium npm run test:browser`. The test drives the actual UI and keyboard, checks movement and rest without teleporting, runs the cinematic, checks fullscreen and graphics settings, and captures screenshots to ignored `test-results/`. Set `TEST_URL=http://localhost:4173/?diagnostics` to test the production preview. Diagnostic state is read-only and available in development or with `?diagnostics`.
+The test uses installed Google Chrome. To use downloaded Chromium, run `npx playwright install chromium ffmpeg`, then `BROWSER_CHANNEL=chromium npm run test:browser`. It drives actual inputs, captures all eight requested views, records `test-results/overhaul-motion.webm`, checks predominantly black output, audio, pause/rest/return, settings/fullscreen and errors. Full PNGs, video and detailed metrics remain in ignored `test-results/`. Diagnostic snapshots are read-only and available in development or with `?diagnostics`.
 
-`npm run build` produces `dist/` for static hosting. Relative build URLs support deployment below a subpath. No server, database, multiplayer service or account is required.
+`npm run build` creates `dist/` for static hosting, with relative URLs for subpaths. No backend, account, CDN, reference video or character download is required at runtime.
 
-## Scope and next milestone
+## Model and documentation
 
-This is a procedural art foundation. Armor and landscapes need further art direction and broader hardware testing; procedural sound is usable placeholder audio. The third-person camera avoids terrain and local obstacles, but the cinematic is authored for the hilltop area. There is no game save, gamepad/touch movement, combat, inventory, village, memories, climbable tower, restoration sequence, helmet removal or complete 10-minute story yet.
+```sh
+npm run export:knight
+```
 
-The recommended next milestone is **The Forgotten Village**: a licensed rigged production character with blended animation clips, authored village traversal, and the toy-horse memory interaction, after another animation/visual polish pass on this slice.
+Regenerates [nameless-knight.glb](public/models/nameless-knight.glb), a Blender-compatible original bind-pose model with its 18-joint skin. The game uses the same source builder directly. Append `?knight=prototype` to view the preserved original fallback. Runtime procedural animation and cloth shader are not baked into the export.
 
-See [architecture](docs/ARCHITECTURE.md), [visual reference study](docs/VISUAL_REFERENCES.md), [roadmap](docs/ROADMAP.md), [asset credits](docs/ASSETS.md) and [validation notes](docs/VALIDATION.md).
+[Architecture](docs/ARCHITECTURE.md) · [Reference comparison](docs/VISUAL_REFERENCES.md) · [Validation/captures](docs/VALIDATION.md) · [Assets/provenance](docs/ASSETS.md) · [Roadmap](docs/ROADMAP.md)
+
+No village, combat, inventory, climbable tower, restoration sequence, helmet removal, full story or multiplayer was added. The next recommended milestone is authored character/cloth animation polish within the same hilltop scene.

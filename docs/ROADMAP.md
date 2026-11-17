@@ -1,41 +1,27 @@
 # Roadmap
 
-## Complete — Prelude 01: The Knight on the Hill
+## Complete — Prelude 01 foundation
 
-- Real-time 3D GPU ASCII renderer with stability filtering and adjustable density/render scale.
-- Procedural articulated knight, idle/walk/run/evade, accelerated terrain traversal and orbit camera.
-- Original hillside and valley, instanced moving grass, rocks/trees, fog, twilight and distant ruined tower.
-- Reachable waystone, rest interaction, sit/lie/breathe, continuous camera pullback and reversible return to exploration.
-- Procedural audio buses, localized distant bell, surface-specific footsteps and cinematic mix.
-- Menu, pause/settings/credits/help, fullscreen, persisted preferences and optional diagnostics.
-- Automated system and browser checks, static production build.
+Playable hilltop exploration, third-person controls, terrain and object collision, GPU ASCII world rendering, rest interaction, real-time camera pullback, procedural audio buses, settings/pause/credits/help, fullscreen and diagnostics.
 
-## Next — Character polish and The Forgotten Village
+## Complete — 0.2 visual and animation overhaul
 
-1. Refine silhouette/terrain composition against the supplied references; test motion aliasing on varied GPUs.
-2. Integrate an appropriately licensed skinned knight GLB with idle/walk/run/sit/lie/get-up clips and animation blending. Keep procedural rig as fallback.
-3. Replace placeholders with licensed or commissioned sound, mixing for headphones/speakers.
-4. Author an abandoned village with buildings, carts, cobblestones and robust capsule collision; evaluate Rapier.
-5. Add the toy horse interaction, girl's memory and chapter transition.
+- Black-background lighting, selective silver highlights and no aggressive shadow lift.
+- Original shaped Gothic plate harness, actual linked mail, 18-joint skin, batched armor, GLB export and retained prototype fallback.
+- Five curved grass tuft templates, clustered growth, coherent world-direction wind, actor response and distance detail reduction.
+- Distance-driven walking/running, distinct run pose/flight, anchored stance contacts, terrain IK, reach-aware pelvis, turning correction steps and restrained breathing.
+- Staggered rest preparation, supporting wrist, terrain-aligned sitting/reclining and reversible get-up.
+- Measured-density glyph atlas, oriented outlines, depth-derived normals, camera reprojection, history rejection and temporal filtering.
+- Closer gameplay framing, speed-sensitive follow/FOV, wheel zoom and lower cinematic side shot.
+- Shared rock render/collision placement with regression coverage.
+- ESLint, expanded tests at 30/60/144 Hz, browser image/video captures, opt-in CPU/GPU profiling and GitHub Actions.
 
-## Later — The Hollow
+## Recommended next art milestone
 
-- Combat inputs, attack combos, dodge invulnerability rules, hit detection and damage feedback.
-- Enemy perception, pursuit, telegraphed strikes, death and ASCII particle dissolution.
-- Recovery/death/checkpoints and the first returning bird.
+Have an animator author walk/run/start/stop/turn/sit/lie/get-up clips against the exported rig or a commissioned compatible rig. Crossfade those clips through AnimationMixer, retain terrain/stance corrections, refine hand/sword placement on uneven terrain, and add cloth contact. Continue evaluating small-scale grass aliasing and silhouettes across GPUs. These are refinement tasks for the same hilltop; no new story content was added during this overhaul.
 
-## Later — The Last Bell
+## Later story work — not implemented
 
-- Navigable tower stairs and broken great bell interaction.
-- Brass bell inventory/story event, spatial valley bells and environmental restoration.
-- Wind/sky/grass/birds/light state transitions driven by quest data.
+The Forgotten Village and toy horse memory; forest enemy/combat/dissolution; tower stairs and broken great bell; brass bell restoration; helmet removal and complete five-chapter ending. Inventory, checkpoint saves, gamepad/touch movement and multiplayer are also not implemented.
 
-## Later — A Moment of Peace
-
-- Return journey, helmet removal, refined rest animation and final cinematic.
-- Narrative ending, intentional fade to black and replay flow.
-- Pace all five chapters to approximately 10 minutes with playtesting.
-
-## Foundation work before online play
-
-Entity identities, simulation snapshots, interpolation, authoritative combat, persistence and content streaming. No multiplayer networking is included in this milestone. Desktop keyboard/mouse is the supported input; gamepad and touch gameplay remain future work.
+Before online play, introduce entity identity, authoritative simulation snapshots, interpolation, persistence and content streaming. The current isolated systems make that work possible; they are not a working multiplayer stack.

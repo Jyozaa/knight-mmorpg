@@ -7,6 +7,7 @@ export class CharacterController {
   readonly velocity = new T.Vector3();
   rotation = Math.PI;
   speed = 0;
+  turnRate = 0;
   dodge = 0;
   private dodgeCooldown = 0;
   private direction = new T.Vector3();
@@ -38,7 +39,7 @@ export class CharacterController {
         -x * Math.sin(yaw) + z * Math.cos(yaw),
       );
     }
-    const target = this.dodge > 0 ? 8 : running ? 5.6 : 2.9;
+    const target = this.dodge > 0 ? 8 : running ? 4.4 : 1.65;
     this.velocity.x = damp(this.velocity.x, this.direction.x * target, 9, dt);
     this.velocity.z = damp(this.velocity.z, this.direction.z * target, 9, dt);
     const nextX = this.position.x + this.velocity.x * dt,
@@ -52,12 +53,15 @@ export class CharacterController {
         Math.sin(angle - this.rotation),
         Math.cos(angle - this.rotation),
       );
-      this.rotation += delta * (1 - Math.exp(-12 * dt));
+      const turn = delta * (1 - Math.exp(-7 * dt));
+      this.rotation += turn;
+      this.turnRate = damp(this.turnRate, turn / Math.max(dt, 0.001), 8, dt);
     }
   }
   stop() {
     this.velocity.set(0, 0, 0);
     this.speed = 0;
     this.dodge = 0;
+    this.turnRate = 0;
   }
 }

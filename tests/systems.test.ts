@@ -52,7 +52,7 @@ test("movement follows terrain; diagonal movement does not gain speed; run is fa
     diag = simulate(["KeyW", "KeyD"]),
     run = simulate(["KeyW", "ShiftLeft"]);
   assert.ok(Math.abs(walk.speed - diag.speed) < 1e-10);
-  assert.ok(run.speed > walk.speed * 1.8);
+  assert.ok(run.speed > walk.speed * 2.5);
   assert.ok(
     Math.abs(walk.position.z - simulate(["KeyW"], 144).position.z) < 0.03,
   );
@@ -64,12 +64,12 @@ test("cinematic remains above terrain and reveals the wide landscape", () => {
   let maxDistance = 0;
   for (let i = 0; i < 3600; i++) {
     c.update(1 / 60);
-    assert.ok(c.position.y >= heightAt(c.position.x, c.position.z) + 0.99);
+    assert.ok(c.position.y >= heightAt(c.position.x, c.position.z) + 0.279);
     assert.ok(c.position.toArray().every(Number.isFinite));
     maxDistance = Math.max(maxDistance, c.position.distanceTo(origin));
   }
   assert.equal(c.time, 55);
-  assert.ok(maxDistance > 100);
+  assert.ok(maxDistance > 95);
   c.stop();
   assert.equal(c.active, false);
 });

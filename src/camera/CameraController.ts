@@ -10,7 +10,8 @@ export class CameraController {
   );
   yaw = 0;
   pitch = 0.26;
-  distance = 6.5;
+  distance = 4.8;
+  private zoomDistance = 4.5;
   private target = new T.Vector3();
   private desired = new T.Vector3();
   private look = new T.Vector3();
@@ -19,8 +20,14 @@ export class CameraController {
     private obstacles: Obstacle[] = [],
   ) {
     this.target.copy(position).add(new T.Vector3(0, 1.3, 0));
-    this.camera.position.copy(position).add(new T.Vector3(0, 3.6, 6.5));
+    this.camera.position.copy(position).add(new T.Vector3(0, 2.5, 4.8));
     this.camera.lookAt(this.target);
+  }
+  zoom(delta: number) {
+    this.zoomDistance = Math.max(
+      1.9,
+      Math.min(7.5, this.zoomDistance + delta * 0.004),
+    );
   }
   orbit(dx: number, dy: number, sensitivity: number) {
     this.yaw -= dx * 0.0027 * sensitivity;
@@ -29,12 +36,18 @@ export class CameraController {
       Math.min(1.05, this.pitch + dy * 0.0027 * sensitivity),
     );
   }
-  update(dt: number, position: T.Vector3, menu = false, time = 0) {
+  update(dt: number, position: T.Vector3, menu = false, time = 0, speed = 0) {
     const yaw = menu ? -0.55 + Math.sin(time * 0.06) * 0.08 : this.yaw;
-    const distance = menu ? 5.6 : this.distance;
+    this.distance = damp(
+      this.distance,
+      this.zoomDistance + Math.min(1, speed / 4.4) * 0.75,
+      2.5,
+      dt,
+    );
+    const distance = menu ? 3.7 : this.distance;
     this.desired.set(
       position.x + Math.sin(yaw) * distance,
-      position.y + 1.5 + Math.sin(this.pitch) * distance,
+      position.y + 1.1 + Math.sin(this.pitch) * distance,
       position.z + Math.cos(yaw) * distance,
     );
     this.desired.y = Math.max(
@@ -76,10 +89,15 @@ export class CameraController {
         oz + dz * fraction,
       );
     this.camera.position.lerp(this.desired, 1 - Math.exp(-4 * dt));
-    this.look.copy(position).add(new T.Vector3(menu ? -1.4 : 0, 1.25, 0));
+    this.look.copy(position).add(new T.Vector3(menu ? -0.85 : 0, 1.25, 0));
     this.target.lerp(this.look, 1 - Math.exp(-6 * dt));
     this.camera.lookAt(this.target);
-    this.camera.fov = damp(this.camera.fov, menu ? 48 : 50, 3, dt);
+    this.camera.fov = damp(
+      this.camera.fov,
+      menu ? 42 : 44 + Math.min(1, speed / 4.4) * 3,
+      3,
+      dt,
+    );
     this.camera.updateProjectionMatrix();
   }
   cinematic(dt: number, position: T.Vector3, target: T.Vector3) {

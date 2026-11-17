@@ -1,43 +1,41 @@
 import * as T from "three";
 import { heightAt, terrainMaterial, type Obstacle } from "./terrain";
 import { random } from "../config";
+import { Grass } from "./Grass";
+import { populateRocks } from "./rockPlacement";
 export class World {
   readonly scene = new T.Scene();
   readonly obstacles: Obstacle[] = [];
   readonly rest = new T.Vector3(0, heightAt(0, -3), -3);
-  private wind = { value: 0 };
+  readonly grass: Grass;
+  readonly rocks: T.InstancedMesh;
+  readonly rockObstacles: Obstacle[] = [];
+  private keyLight: T.DirectionalLight;
+  private rimLight: T.DirectionalLight;
   private motes: T.Points;
   constructor() {
     const scene = this.scene;
-    scene.background = new T.Color("#10171b");
-    scene.fog = new T.FogExp2("#151b20", 0.0055);
-    scene.add(new T.HemisphereLight("#b7c6d6", "#33312b", 2.0));
-    const sun = new T.DirectionalLight("#ffe1ad", 3.8);
-    sun.position.set(-40, 45, -35);
+    scene.background = new T.Color(0x000000);
+    scene.fog = new T.FogExp2(0x000000, 0.034);
+    scene.add(new T.HemisphereLight("#ebeee9", "#000000", 0.12));
+    const sun = new T.DirectionalLight("#f3f4ed", 8.0);
+    sun.position.set(-8, 20, 16);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -55;
-    sun.shadow.camera.right = 55;
-    sun.shadow.camera.top = 55;
-    sun.shadow.camera.bottom = -55;
-    sun.shadow.camera.far = 180;
-    sun.shadow.bias = -0.0003;
-    sun.shadow.normalBias = 0.04;
-    scene.add(sun);
-    const rim = new T.DirectionalLight("#c4daef", 1.5);
-    rim.position.set(20, 12, 30);
-    scene.add(rim);
-    const sky = new T.Mesh(
-      new T.SphereGeometry(600, 32, 24),
-      new T.ShaderMaterial({
-        side: T.BackSide,
-        depthWrite: false,
-        uniforms: {},
-        vertexShader: `varying vec3 dir;void main(){dir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-        fragmentShader: `varying vec3 dir;void main(){vec3 d=normalize(dir);float horizon=pow(1.-abs(d.y),5.);vec3 c=mix(vec3(.018,.028,.042),vec3(.055,.065,.075),horizon);float s=pow(max(0.,dot(d,normalize(vec3(-.43,.19,-.85)))),2800.);float glow=pow(max(0.,dot(d,normalize(vec3(-.43,.19,-.85)))),25.);c+=vec3(.09,.07,.04)*glow+vec3(1.,.85,.57)*s;gl_FragColor=vec4(c,1.);}`,
-      }),
-    );
-    scene.add(sky);
+    sun.shadow.camera.left = -12;
+    sun.shadow.camera.right = 12;
+    sun.shadow.camera.top = 12;
+    sun.shadow.camera.bottom = -12;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 65;
+    sun.shadow.bias = -0.0001;
+    sun.shadow.normalBias = 0.012;
+    scene.add(sun, sun.target);
+    this.keyLight = sun;
+    const rim = new T.DirectionalLight("#dde2e0", 3.6);
+    rim.position.set(6, 18, -12);
+    scene.add(rim, rim.target);
+    this.rimLight = rim;
     const geometry = new T.PlaneGeometry(430, 430, 220, 220);
     geometry.rotateX(-Math.PI / 2);
     const pos = geometry.attributes.position;
@@ -49,7 +47,7 @@ export class World {
       const y = heightAt(x, z);
       pos.setY(i, y);
       const path = terrainMaterial(x, z) === "stone";
-      c.set(path ? "#58544b" : "#454941");
+      c.set(path ? "#080908" : "#020302");
       const shade =
         0.75 +
         0.22 * Math.sin(x * 0.34) * Math.cos(z * 0.31) +
@@ -67,75 +65,28 @@ export class World {
     scene.add(ground);
     const rng = random(9218);
     const dummy = new T.Object3D();
-    const grassGeo = new T.PlaneGeometry(0.1, 0.65, 1, 3);
-    grassGeo.translate(0, 0.325, 0);
-    const blades = grassGeo.attributes.position;
-    for (let i = 0; i < blades.count; i++)
-      blades.setX(i, blades.getX(i) * (1 - blades.getY(i) / 0.65));
-    const grassMat = new T.MeshStandardMaterial({
-      color: "#747363",
-      roughness: 1,
-      side: T.DoubleSide,
-    });
-    grassMat.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = this.wind;
-      shader.vertexShader = "uniform float uTime;\n" + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace(
-        "#include <begin_vertex>",
-        `#include <begin_vertex>
-      float gust=sin(uTime*1.1+instanceMatrix[3].x*.19+instanceMatrix[3].z*.13);
-      transformed.x+=gust*.22*pow(position.y,2.)+sin(uTime*2.+instanceMatrix[3].z)*.06*position.y;
-    `,
-      );
-    };
-    const grass = new T.InstancedMesh(grassGeo, grassMat, 28000);
-    grass.frustumCulled = false;
-    for (let i = 0; i < 28000; i++) {
-      const r = Math.sqrt(rng()) * (i < 10000 ? 28 : 115),
-        a = rng() * Math.PI * 2,
-        x = Math.cos(a) * r,
-        z = Math.sin(a) * r;
-      dummy.position.set(x, heightAt(x, z) - 0.05, z);
-      dummy.rotation.set(0, rng() * 6.28, 0);
-      const s = 0.4 + rng() * 1.15;
-      dummy.scale.set(1, s, 1);
-      if (terrainMaterial(x, z) === "stone") dummy.scale.setScalar(0.12);
-      dummy.updateMatrix();
-      grass.setMatrixAt(i, dummy.matrix);
-      c.setHSL(0.13, 0.09, 0.23 + rng() * 0.18);
-      grass.setColorAt(i, c);
-    }
-    scene.add(grass);
+    this.grass = new Grass(scene);
     const rockGeo = new T.DodecahedronGeometry(1, 0),
       rockMat = new T.MeshStandardMaterial({
-        color: "#747570",
+        color: "#303330",
         roughness: 0.9,
         flatShading: true,
       });
     const rocks = new T.InstancedMesh(rockGeo, rockMat, 200);
-    for (let i = 0; i < 200; i++) {
-      let x = (rng() - 0.5) * 260,
-        z = (rng() - 0.5) * 250;
-      if (Math.hypot(x, z) < 9) x += 12;
-      const s = 0.3 + rng() * 2;
-      dummy.position.set(x, heightAt(x, z) + s * 0.16, z);
-      dummy.rotation.set(rng(), rng() * 6.28, rng());
-      dummy.scale.set(s, s * 0.65, s * 0.8);
-      dummy.updateMatrix();
-      rocks.setMatrixAt(i, dummy.matrix);
-      this.obstacles.push({ x, z, radius: s * 0.8, height: s * 1.5 });
-    }
+    populateRocks(rocks, rng, this.rockObstacles);
+    this.obstacles.push(...this.rockObstacles);
+    this.rocks = rocks;
     rocks.castShadow = true;
     rocks.receiveShadow = true;
     scene.add(rocks);
     const trunks = new T.InstancedMesh(
       new T.CylinderGeometry(0.22, 0.4, 4, 5),
-      new T.MeshStandardMaterial({ color: "#3c3d3a" }),
+      new T.MeshStandardMaterial({ color: "#171b18" }),
       180,
     );
     const leaves = new T.InstancedMesh(
       new T.ConeGeometry(2.8, 8, 7),
-      new T.MeshStandardMaterial({ color: "#303d3b", flatShading: true }),
+      new T.MeshStandardMaterial({ color: "#101510", flatShading: true }),
       540,
     );
     for (let i = 0; i < 180; i++) {
@@ -172,7 +123,7 @@ export class World {
       const peak = new T.Mesh(
         new T.ConeGeometry(35 + rng() * 45, h, 6),
         new T.MeshStandardMaterial({
-          color: i % 2 ? "#59626a" : "#444e59",
+          color: i % 2 ? "#171a18" : "#101310",
           flatShading: true,
         }),
       );
@@ -220,7 +171,7 @@ export class World {
         color: "#b5ab91",
         size: 0.075,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.17,
       }),
     );
     scene.add(this.motes);
@@ -230,7 +181,7 @@ export class World {
     group.position.set(x, heightAt(x, z), z);
     this.scene.add(group);
     const stone = new T.MeshStandardMaterial({
-      color: "#89877e",
+      color: "#636760",
       roughness: 1,
       flatShading: true,
     });
@@ -280,8 +231,15 @@ export class World {
       m.rotation.set(0.2, i, 0.3);
     }
   }
-  update(time: number) {
-    this.wind.value = time;
+  update(time: number, actor: T.Vector3, camera: T.Vector3) {
+    this.grass.update(time, actor, camera);
+    // Keep the lit hill readable during the long pullback while the valley still falls into black.
+    (this.scene.fog as T.FogExp2).density =
+      0.034 / (1 + camera.distanceTo(actor) * 0.025);
+    this.keyLight.position.set(actor.x - 8, actor.y + 8, actor.z + 10);
+    this.keyLight.target.position.copy(actor);
+    this.rimLight.position.set(actor.x + 7, actor.y + 5, actor.z - 8);
+    this.rimLight.target.position.copy(actor);
     this.motes.rotation.y = Math.sin(time * 0.015) * 0.1;
     this.motes.position.y = Math.sin(time * 0.2) * 0.3;
   }

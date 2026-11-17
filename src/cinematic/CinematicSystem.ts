@@ -14,12 +14,12 @@ export class CinematicSystem {
   private origin = new T.Vector3();
   private yaw = 0;
   readonly keys: CameraKey[] = [
-    { time: 0, offset: new T.Vector3(3.4, 1.8, 2.5), lookHeight: 1 },
-    { time: 7.5, offset: new T.Vector3(3.8, 1.0, 0.8), lookHeight: 0.5 },
-    { time: 15, offset: new T.Vector3(7, 3, 4), lookHeight: 0.3 },
-    { time: 26, offset: new T.Vector3(18, 9, 15), lookHeight: 1 },
-    { time: 40, offset: new T.Vector3(42, 25, 40), lookHeight: 2 },
-    { time: 55, offset: new T.Vector3(85, 44, 78), lookHeight: 3 },
+    { time: 0, offset: new T.Vector3(-2.5, 1.35, 2.5), lookHeight: 1 },
+    { time: 10, offset: new T.Vector3(-2.7, 0.55, 0.2), lookHeight: 0.35 },
+    { time: 15, offset: new T.Vector3(-5, 1.8, 3), lookHeight: 0.3 },
+    { time: 26, offset: new T.Vector3(-18, 8, 15), lookHeight: 1 },
+    { time: 40, offset: new T.Vector3(-42, 22, 40), lookHeight: 2 },
+    { time: 55, offset: new T.Vector3(-72, 35, 68), lookHeight: 3 },
   ];
   private curve = new T.CatmullRomCurve3(
     this.keys.map((key) => key.offset),
@@ -45,7 +45,7 @@ export class CinematicSystem {
       .add(this.origin);
     this.position.y = Math.max(
       this.position.y,
-      heightAt(this.position.x, this.position.z) + 1.0,
+      heightAt(this.position.x, this.position.z) + 0.28,
     );
     this.target.copy(this.origin);
     this.target.y += a.lookHeight + (b.lookHeight - a.lookHeight) * t;

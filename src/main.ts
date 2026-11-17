@@ -4,6 +4,7 @@ import { readSettings } from "./config";
 import { AsciiRenderer } from "./rendering/AsciiRenderer";
 import { World } from "./world/World";
 import { Knight } from "./character/Knight";
+import { PrototypeKnight } from "./character/PrototypeKnight";
 import { CharacterController } from "./character/CharacterController";
 import { CameraController } from "./camera/CameraController";
 import { CinematicSystem } from "./cinematic/CinematicSystem";
@@ -19,7 +20,10 @@ function boot() {
     ui = new UI(settings);
   const renderer = new AsciiRenderer(ui.viewport, settings),
     world = new World(),
-    knight = new Knight(),
+    knight =
+      new URLSearchParams(location.search).get("knight") === "prototype"
+        ? new PrototypeKnight()
+        : new Knight(),
     player = new CharacterController();
   world.scene.add(knight.root);
   knight.root.position.copy(player.position);
@@ -31,6 +35,9 @@ function boot() {
     interactions = new InteractionSystem(),
     quest = new QuestProgression();
   let gettingUp = 0;
+  let animationCpuMs = 0,
+    cameraCpuMs = 0;
+  let visualYaw = -0.35;
   let screen: Screen = "menu",
     beforePause: Screen = "playing";
   let previous = performance.now(),
@@ -49,7 +56,7 @@ function boot() {
     if (next !== "playing") document.exitPointerLock?.();
   };
   const returnToPlay = () => {
-    gettingUp = Math.min(7.5, cinematic.time);
+    gettingUp = Math.min(10, cinematic.time);
     cinematic.stop();
     player.stop();
     setScreen("playing");
@@ -102,9 +109,22 @@ function boot() {
       pause();
     }
     if (e.code === "KeyF" && !ui.modalOpen) ui.onFullscreen();
-    if (e.code === "Backquote") ui.toggleDiagnostics();
+    if (e.code === "Backquote") {
+      ui.toggleDiagnostics();
+      renderer.profiler.enabled = !renderer.profiler.enabled;
+    }
     if (e.code === "KeyH" && screen === "playing") ui.toggleHelp();
   });
+  renderer.renderer.domElement.addEventListener(
+    "wheel",
+    (e) => {
+      if (screen === "playing") {
+        e.preventDefault();
+        camera.zoom(e.deltaY);
+      }
+    },
+    { passive: false },
+  );
   addEventListener("resize", () => {
     renderer.resize();
     camera.resize();
@@ -122,12 +142,12 @@ function boot() {
     const dt = Math.min(0.05, Math.max(0.0001, raw));
     if (screen !== "paused" && !ui.modalOpen) {
       time += dt;
-      world.update(time);
+      world.update(time, player.position, camera.camera.position);
       if (screen === "playing") {
         playingTime += dt;
         if (playingTime > 12) ui.hideHint();
         camera.orbit(input.mouseX, input.mouseY, settings.sensitivity);
-        gettingUp = Math.max(0, gettingUp - dt * 2);
+        gettingUp = Math.max(0, gettingUp - dt * 1.6);
         if (gettingUp === 0)
           player.update(dt, input, camera.yaw, world.obstacles);
         else player.stop();
@@ -135,6 +155,7 @@ function boot() {
         ui.restPrompt(!!interactions.active && gettingUp === 0);
         if (input.consume("KeyE") && gettingUp === 0) interactions.interact();
       }
+      const cameraStart = performance.now();
       if (screen === "cinematic") {
         cinematic.update(dt);
         const turn = Math.atan2(
@@ -144,9 +165,24 @@ function boot() {
         player.rotation += turn * (1 - Math.exp(-2 * dt));
         camera.cinematic(dt, cinematic.position, cinematic.target);
         ui.cinematicTime(cinematic.time);
-      } else camera.update(dt, player.position, screen === "menu", time);
+      } else
+        camera.update(
+          dt,
+          player.position,
+          screen === "menu",
+          time,
+          player.speed,
+        );
+      cameraCpuMs = cameraCpuMs * 0.9 + (performance.now() - cameraStart) * 0.1;
       knight.root.position.copy(player.position);
-      knight.root.rotation.y = screen === "menu" ? -0.35 : player.rotation;
+      const targetYaw = screen === "menu" ? -0.35 : player.rotation;
+      const yawDelta = Math.atan2(
+        Math.sin(targetYaw - visualYaw),
+        Math.cos(targetYaw - visualYaw),
+      );
+      visualYaw += yawDelta * (1 - Math.exp(-7 * dt));
+      knight.root.rotation.y = visualYaw;
+      const animationStart = performance.now();
       knight.update(
         dt,
         time,
@@ -157,7 +193,10 @@ function boot() {
             ? gettingUp
             : null,
         player.dodge,
+        player.turnRate,
       );
+      animationCpuMs =
+        animationCpuMs * 0.9 + (performance.now() - animationStart) * 0.1;
       if (screen !== "menu") {
         camera.camera.getWorldDirection(forward);
         audio.update(
@@ -171,7 +210,7 @@ function boot() {
         );
       }
     }
-    renderer.render(world.scene, camera.camera);
+    renderer.render(world.scene, camera.camera, dt, world.grass.group);
     input.endFrame();
     frameCount++;
     frameTimer += raw;
@@ -181,7 +220,7 @@ function boot() {
       frameCount = 0;
       frameTimer = 0;
       ui.diagnosticsText(
-        `${fps} FPS · ${frameMs.toFixed(1)} ms\n${renderer.drawCalls} scene calls\nASCII ${renderer.columns} × ${renderer.rows}\n${screen} · ${player.speed.toFixed(1)} m/s`,
+        `${fps} FPS · ${frameMs.toFixed(1)} ms\n${renderer.drawCalls} scene calls\nASCII ${renderer.columns} × ${renderer.rows}\n${screen} · ${player.speed.toFixed(1)} m/s\nCPU animation ${animationCpuMs.toFixed(2)} · camera ${cameraCpuMs.toFixed(2)} ms\nCPU scene ${renderer.sceneCpuMs.toFixed(2)} · ASCII ${renderer.asciiCpuMs.toFixed(2)} ms\nGrass pass ${renderer.grassCpuMs.toFixed(2)} ms CPU\nGPU scene ${renderer.profiler.milliseconds.scene?.toFixed(2) ?? "n/a"} · ASCII ${renderer.profiler.milliseconds.ascii?.toFixed(2) ?? "n/a"} · grass ${renderer.profiler.milliseconds.grass?.toFixed(2) ?? "n/a"} ms`,
       );
     }
   }
@@ -203,6 +242,21 @@ function boot() {
           cinematicTime: cinematic.time,
           hipsY: knight.hips.position.y,
           hipsRotation: knight.hips.rotation.x,
+          chestRotation:
+            knight instanceof Knight
+              ? knight.rig.spine.rotation.x + knight.rig.chest.rotation.x
+              : knight.hips.rotation.x,
+          animation: knight instanceof Knight ? knight.diagnostics : null,
+          performance: {
+            animationCpuMs,
+            cameraCpuMs,
+            sceneCpuMs: renderer.sceneCpuMs,
+            asciiCpuMs: renderer.asciiCpuMs,
+            grassCpuMs: renderer.grassCpuMs,
+            gpu: { ...renderer.profiler.milliseconds },
+          },
+          grassInstances: world.grass.visibleInstances,
+          glyphs: renderer.glyphCharacters,
           camera: camera.camera.position.toArray(),
           fps,
           drawCalls: renderer.drawCalls,

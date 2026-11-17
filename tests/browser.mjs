@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, renameSync } from "node:fs";
+import { PNG } from "pngjs";
 mkdirSync("test-results", { recursive: true });
 const browser = await chromium.launch({
   channel: process.env.BROWSER_CHANNEL || "chrome",
@@ -9,6 +10,10 @@ const browser = await chromium.launch({
 const page = await browser.newPage({
   viewport: { width: 1440, height: 900 },
   deviceScaleFactor: 1,
+  recordVideo: {
+    dir: "test-results/video",
+    size: { width: 1440, height: 900 },
+  },
 });
 const errors = [],
   messages = [],
@@ -57,15 +62,64 @@ try {
   assert.ok(await page.evaluate(() => !!document.pointerLockElement));
   const start = await snapshot();
   assert.ok(start.audio.rms > 0.000001);
-  await key("w", 1200);
+  await page.screenshot({ path: "test-results/standing.png" });
+  const standing = PNG.sync.read(readFileSync("test-results/standing.png"));
+  let black = 0,
+    visible = 0;
+  for (let y = 120; y < 850; y++)
+    for (let x = 0; x < 1440; x++) {
+      const index = (y * 1440 + x) * 4;
+      const value = Math.max(...standing.data.subarray(index, index + 3));
+      if (value < 12) black++;
+      if (value > 60) visible++;
+    }
+  result.image = {
+    blackFraction: black / (1440 * 730),
+    visibleFraction: visible / (1440 * 730),
+  };
+  assert.ok(result.image.blackFraction > 0.72);
+  assert.ok(visible > 3000);
+  await wait(180);
+  const later = PNG.sync.read(await page.screenshot());
+  let changed = 0;
+  for (let i = 0; i < standing.data.length; i += 4)
+    if (Math.abs(standing.data[i] - later.data[i]) > 35) changed++;
+  result.image.changedPixelFraction = changed / (1440 * 900);
+  assert.ok(result.image.changedPixelFraction < 0.14);
+  // Real drag and wheel controls produce the close portrait, then restore the gameplay view.
+  await page.evaluate(() => document.exitPointerLock());
+  await page.mouse.move(150, 450);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(1300, 450, { steps: 30 });
+  await page.mouse.up({ button: "right" });
+  await page.mouse.wheel(0, -600);
+  await wait(1700);
+  await page.screenshot({ path: "test-results/knight-closeup.png" });
+  await page.screenshot({
+    path: "test-results/grass-closeup.png",
+    clip: { x: 980, y: 520, width: 420, height: 340 },
+  });
+  await page.mouse.move(1300, 450);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(150, 450, { steps: 30 });
+  await page.mouse.up({ button: "right" });
+  await page.mouse.wheel(0, 600);
+  await wait(800);
+  await page.keyboard.down("w");
+  await wait(2500);
+  await page.screenshot({ path: "test-results/walking.png" });
   const walk = await snapshot();
-  assert.ok(walk.position[2] < start.position[2] - 2);
-  assert.ok(walk.speed > 2.5);
+  assert.ok(walk.position[2] < start.position[2] - 3);
+  assert.ok(walk.speed > 1.5);
   await page.keyboard.down("Shift");
-  await key("w", 700);
+  await wait(700);
+  await page.screenshot({ path: "test-results/running.png" });
+  await page.keyboard.up("w");
   await page.keyboard.up("Shift");
   const run = await snapshot();
-  assert.ok(run.speed > 5);
+  result.walk = walk;
+  result.run = run;
+  assert.ok(run.speed > 4.0);
   await wait(450);
   assert.ok((await snapshot()).speed < 0.2);
   assert.equal((await snapshot()).restAvailable, true);
@@ -74,7 +128,7 @@ try {
     "PASS menu, settings, credits, audio unlock, pointer lock, walking, running, deceleration, rest proximity",
   );
   await page.keyboard.press("e");
-  await wait(2000);
+  await wait(3300);
   assert.equal((await snapshot()).screen, "cinematic");
   await page.screenshot({ path: "test-results/sitting.png" });
   await page.keyboard.press("Escape");
@@ -84,16 +138,16 @@ try {
   await wait(400);
   assert.equal((await snapshot()).cinematicTime, paused.cinematicTime);
   await page.getByRole("button", { name: "Continue Journey" }).click();
-  await wait(6500);
+  await wait(7500);
   const lying = await snapshot();
-  assert.ok(lying.hipsRotation < -1.3);
+  assert.ok(lying.chestRotation < -1.5);
   assert.ok(lying.hipsY < 0.4);
   await page.screenshot({ path: "test-results/resting.png" });
   result.close = lying;
   log(
     "PASS rest, sitting, lying, cinematic camera, pause freezes timeline, resume",
   );
-  await wait(33000);
+  await wait(29000);
   const wide = await snapshot();
   assert.ok(wide.cinematicTime > 38);
   assert.ok(
@@ -104,14 +158,18 @@ try {
   );
   await page.screenshot({ path: "test-results/landscape.png" });
   result.wide = wide;
+  await page.keyboard.press("Backquote");
+  await wait(2300);
+  result.performance = (await snapshot()).performance;
+  await page.keyboard.press("Backquote");
   assert.ok(wide.audio.breathing < lying.audio.breathing);
   assert.ok(wide.audio.wind > lying.audio.wind);
-  await wait(15500);
+  await wait(16500);
   assert.equal((await snapshot()).cinematicTime, 55);
   await page.screenshot({ path: "test-results/final-panorama.png" });
   log("PASS landscape pullback and closing quote");
   await page.getByRole("button", { name: "Return to the fields" }).click();
-  await wait(4000);
+  await wait(6700);
   assert.equal((await snapshot()).screen, "playing");
   assert.ok(Math.abs((await snapshot()).hipsRotation) < 0.01);
   const still = await snapshot();
@@ -167,5 +225,8 @@ try {
     JSON.stringify(result, null, 2),
   );
 } finally {
+  const video = page.video();
   await browser.close();
+  if (video)
+    renameSync(await video.path(), "test-results/overhaul-motion.webm");
 }

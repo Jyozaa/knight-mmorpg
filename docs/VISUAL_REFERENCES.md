@@ -26,3 +26,28 @@ Application: original procedural articulated plate knight with layered pauldrons
 ## Rendering decisions
 
 Real 3D scene rendered offscreen, then reconstructed in a GPU full-screen glyph pass. A fixed cell grid and four-point filtered luminance provide stable samples. Glyph thresholds have a small low-pass/hysteresis history on the GPU to reduce crawling. Depth edges preserve silhouettes. The final image contains glyphs on near-black, with no conventional 3D image blended underneath. Quality and density are independently adjustable. Extracted inspection frames live outside the repository in `/tmp/last-bell-refs`.
+
+## Overhaul study — 0.2
+
+Re-examined the original image and extracted knight-video frames at 0, 3, 6, 9 and 12 seconds, plus Crawlpedia frames across the recording. Temporary study contact sheets remain outside the project in `/tmp/last-bell-overhaul`; no original media is redistributed.
+
+The benchmark knight is a bright, detailed silhouette surrounded by black, with dense highlights, thin outline strokes, deep gaps between armor layers and irregular grass. Its heavy pauldrons, narrow waist, projecting helmet, long sword and animated cloth carry its identity. The recording does not demonstrate walking, running, planted feet or a sit/lie transition, so it cannot be used as evidence for those motions. Crawlpedia demonstrates articulated continuous movement, rather than a humanoid gait reference. The hourglass remains useful for controlled character density and negative space.
+
+### Prototype versus target
+
+| Prototype difference                                                                                    | Overhaul response                                                                                             |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Broad hemisphere lighting, colored sky and brightened dark values fill the whole screen with characters | Black background/fog, very low fill, silver key/rim, black-preserving exponential tonal mapping               |
+| Armor reads as a barrel, round balls and straight tubes                                                 | Sculpted Gothic cross-sections, layered/contoured plates, narrow visor gap, real mail links and fluted detail |
+| Broad rectangular cape hides the back                                                                   | Narrow pleated mantle and split thigh cloth expose armor                                                      |
+| Uniform grass planes create repeating patches of strokes                                                | Five bent tuft templates, clustered distribution, sparse/clear areas, coherent world-space wind               |
+| Arbitrary phase speed creates sliding                                                                   | Distance-driven gait, stance anchors, predicted swing landings and terrain IK                                 |
+| Entire body rotates backward about the pelvis                                                           | Sequential descent, supporting wrist, separate lumbar/chest recline and terrain-aligned contact frame         |
+| Simple glyph ramp plus same-cell history misses moving silhouettes                                      | Measured-density ramp, depth-derived normals, oriented outlines, camera reprojection and history rejection    |
+| Distant background competes with the character                                                          | Revised low side shot, selective illumination, distance extinction and black negative space                   |
+
+### Visual review and limits
+
+Reviewed new standing, walking, running, frontal close-up, grass close-up, seated, lying and wide screenshots, plus representative motion-capture frames. Armor now has a fitted silhouette, readable plate separations and much more geometric detail. Grass forms curved clumps and open patches; predominantly black backgrounds restore hierarchy. The result is an original real-time interpretation, not a reproduction of the reference.
+
+Remaining differences: the reference has bespoke illustration-level shaping and carefully composed bright areas. This procedural suit is more regular, and fine mail/rivets disappear as it gets small. Grass can still resolve into vertical marks at a distance. The motion is procedurally constrained, not motion captured; a polished authored rest/get-up clip and better cloth contact would improve it further. Temporal filtering reduces threshold crawling but cannot remove all aliasing on subcell grass. These limits are not hidden by a high FPS claim.
